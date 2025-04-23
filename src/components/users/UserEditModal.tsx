@@ -22,6 +22,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
   });
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,6 +31,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
 
   const fetchEmpresas = async () => {
     try {
+      setLoadingEmpresas(true);
       const { data, error } = await supabase
         .from('empresas')
         .select('id, razao_social')
@@ -40,6 +42,9 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
       setEmpresas(data || []);
     } catch (err) {
       console.error('Erro ao buscar empresas:', err);
+      setError('Não foi possível carregar a lista de empresas');
+    } finally {
+      setLoadingEmpresas(false);
     }
   };
 
@@ -49,8 +54,22 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
     setError(null);
 
     try {
-      // Atualizar usuário
-      const { data: updatedUser, error: updateError } = await supabase
+      // First, verify if the user still exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          throw new Error('Usuário não encontrado. Ele pode ter sido removido ou você não tem permissão para editá-lo.');
+        }
+        throw checkError;
+      }
+
+      // If we get here, the user exists and we have permission to see it
+      const { data, error: updateError } = await supabase
         .from('usuarios')
         .update({
           nome: formData.nome,
@@ -71,10 +90,18 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
         `)
         .single();
 
-      if (updateError) throw updateError;
-      if (!updatedUser) throw new Error('Usuário não encontrado após atualização');
+      if (updateError) {
+        if (updateError.code === 'PGRST116') {
+          throw new Error('Erro ao atualizar usuário. Verifique se você tem permissão para realizar esta operação.');
+        }
+        throw updateError;
+      }
 
-      onSave(updatedUser as Usuario);
+      if (!data) {
+        throw new Error('Não foi possível recuperar os dados do usuário após a atualização.');
+      }
+
+      onSave(data as Usuario);
       onClose();
     } catch (err) {
       console.error('Erro ao atualizar usuário:', err);
@@ -83,6 +110,16 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
       setLoading(false);
     }
   };
+
+  if (loadingEmpresas) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-gray-800 rounded-xl p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

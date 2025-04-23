@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import UsersPage from './pages/UsersPage';
 import CompaniesPage from './pages/CompaniesPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="companies" element={<CompaniesPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
