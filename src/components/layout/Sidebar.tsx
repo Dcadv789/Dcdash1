@@ -17,8 +17,8 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, collapsed }) => {
       className={({ isActive }) => `
         flex items-center px-4 py-3 rounded-lg transition-all duration-200
         ${isActive 
-          ? 'bg-gray-800 text-white' 
-          : 'text-gray-400 hover:bg-gray-800 hover:text-white'}
+          ? 'bg-indigo-600 text-white' 
+          : 'text-gray-400 hover:bg-indigo-600/20 hover:text-indigo-400'}
         ${collapsed ? 'justify-center' : ''}
       `}
     >
@@ -45,7 +45,7 @@ const Sidebar: React.FC = () => {
         )}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="text-gray-400 hover:text-white transition-colors duration-200 p-1 rounded-lg hover:bg-gray-800"
+          className="text-gray-400 hover:text-indigo-400 transition-colors duration-200 p-1 rounded-lg hover:bg-indigo-600/20"
         >
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -62,7 +62,7 @@ const Sidebar: React.FC = () => {
           onClick={signOut}
           className={`
             flex items-center px-4 py-3 rounded-lg text-gray-400 
-            hover:bg-gray-800 hover:text-white transition-all duration-200
+            hover:bg-red-600/20 hover:text-red-400 transition-all duration-200
             ${collapsed ? 'justify-center' : ''}
           `}
         >

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Settings, User, LogOut, ChevronDown, Building2 } from 'lucide-react';
+import { Bell, Settings, User, LogOut, ChevronDown, Users, Building2, Database, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Usuario } from '../../types/database';
@@ -10,13 +10,20 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDatabaseOpen, setIsDatabaseOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<Usuario | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+        setIsDatabaseOpen(false);
       }
     };
 
@@ -34,15 +41,7 @@ const Navbar: React.FC = () => {
     try {
       const { data } = await supabase
         .from('usuarios')
-        .select(`
-          *,
-          empresa:empresas (
-            id,
-            razao_social,
-            cnpj,
-            logo_url
-          )
-        `)
+        .select('*')
         .eq('auth_id', user!.id)
         .single();
 
@@ -66,11 +65,6 @@ const Navbar: React.FC = () => {
     navigate('/login');
   };
 
-  const formatCNPJ = (cnpj: string | null) => {
-    if (!cnpj) return null;
-    return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-  };
-
   return (
     <div className="bg-black rounded-2xl p-4 flex items-center justify-between z-10">
       <h1 className="text-white text-xl font-semibold">{getPageTitle()}</h1>
@@ -78,9 +72,65 @@ const Navbar: React.FC = () => {
         <button className="text-gray-400 hover:text-white transition-colors duration-200">
           <Bell size={20} />
         </button>
-        <button className="text-gray-400 hover:text-white transition-colors duration-200">
-          <Settings size={20} />
-        </button>
+        
+        <div className="relative" ref={settingsRef}>
+          <button
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-gray-800"
+          >
+            <Settings size={20} />
+            <span className="text-sm">Configurações</span>
+          </button>
+
+          {isSettingsOpen && (
+            <div className="absolute right-0 mt-2 bg-gray-800 rounded-lg shadow-lg py-1 min-w-[200px]">
+              <button
+                onClick={() => navigate('/users')}
+                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+              >
+                <Users size={16} />
+                Usuários
+              </button>
+              <button
+                onClick={() => navigate('/companies')}
+                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+              >
+                <Building2 size={16} />
+                Empresas
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setIsDatabaseOpen(!isDatabaseOpen)}
+                  className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Database size={16} />
+                    Base de dados
+                  </div>
+                  <ChevronRight size={16} className={`transition-transform duration-200 ${isDatabaseOpen ? 'rotate-90' : ''}`} />
+                </button>
+                
+                {isDatabaseOpen && (
+                  <div className="absolute left-full top-0 ml-0.5 bg-gray-800 rounded-lg shadow-lg py-1 min-w-[160px]">
+                    <button
+                      onClick={() => navigate('/categories')}
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
+                    >
+                      Categoria
+                    </button>
+                    <button
+                      onClick={() => navigate('/indicators')}
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
+                    >
+                      Indicador
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -98,34 +148,10 @@ const Navbar: React.FC = () => {
               </div>
             )}
             
-            <div className="text-left hidden md:block">
+            <div className="text-left">
               <div className="font-medium">{userProfile?.nome || 'Usuário'}</div>
               <div className="text-sm text-gray-400">{userProfile?.email}</div>
             </div>
-
-            {userProfile?.empresa && (
-              <div className="hidden lg:flex items-center gap-2 border-l border-gray-700 pl-3 ml-3">
-                {userProfile.empresa.logo_url ? (
-                  <img
-                    src={userProfile.empresa.logo_url}
-                    alt={userProfile.empresa.razao_social}
-                    className="w-6 h-6 rounded object-contain bg-gray-700"
-                  />
-                ) : (
-                  <Building2 size={20} className="text-gray-400" />
-                )}
-                <div className="text-left">
-                  <div className="text-sm font-medium truncate max-w-[150px]">
-                    {userProfile.empresa.razao_social}
-                  </div>
-                  {userProfile.empresa.cnpj && (
-                    <div className="text-xs text-gray-400">
-                      {formatCNPJ(userProfile.empresa.cnpj)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             <ChevronDown size={16} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
