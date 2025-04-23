@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { Categoria, GrupoCategoria, Empresa } from '../../types/database';
+import { Categoria, GrupoCategoria } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../shared/Button';
 
@@ -14,8 +14,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ category, onClose, onSave
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [grupos, setGrupos] = useState<GrupoCategoria[]>([]);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [selectedEmpresas, setSelectedEmpresas] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     nome: category?.nome || '',
     descricao: category?.descricao || '',
@@ -25,11 +23,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ category, onClose, onSave
 
   useEffect(() => {
     fetchGrupos();
-    fetchEmpresas();
-    if (category) {
-      fetchCategoryEmpresas();
-    }
-  }, [category]);
+  }, []);
 
   const fetchGrupos = async () => {
     const { data } = await supabase
@@ -41,35 +35,12 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ category, onClose, onSave
     if (data) setGrupos(data);
   };
 
-  const fetchEmpresas = async () => {
-    const { data } = await supabase
-      .from('empresas')
-      .select('*')
-      .eq('ativa', true)
-      .order('razao_social');
-    
-    if (data) setEmpresas(data);
-  };
-
-  const fetchCategoryEmpresas = async () => {
-    const { data } = await supabase
-      .from('empresa_categorias')
-      .select('empresa_id')
-      .eq('categoria_id', category!.id);
-    
-    if (data) {
-      setSelectedEmpresas(data.map(item => item.empresa_id));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      let categoryId: string;
-
       if (category) {
         const { error } = await supabase
           .from('categorias')
@@ -81,43 +52,17 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ category, onClose, onSave
           .eq('id', category.id);
 
         if (error) throw error;
-        categoryId = category.id;
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('categorias')
           .insert({
             nome: formData.nome,
             descricao: formData.descricao || null,
             grupo_id: formData.grupo_id || null,
             tipo: formData.tipo,
-          })
-          .select()
-          .single();
+          });
 
         if (error) throw error;
-        if (!data) throw new Error('Erro ao criar categoria');
-        categoryId = data.id;
-      }
-
-      // Atualizar associações com empresas
-      if (selectedEmpresas.length > 0) {
-        // Primeiro remove todas as associações existentes
-        await supabase
-          .from('empresa_categorias')
-          .delete()
-          .eq('categoria_id', categoryId);
-
-        // Depois insere as novas associações
-        const { error: associationError } = await supabase
-          .from('empresa_categorias')
-          .insert(
-            selectedEmpresas.map(empresaId => ({
-              categoria_id: categoryId,
-              empresa_id: empresaId
-            }))
-          );
-
-        if (associationError) throw associationError;
       }
 
       onSave();
@@ -194,30 +139,6 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ category, onClose, onSave
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Empresas
-              </label>
-              <select
-                multiple
-                value={selectedEmpresas}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions).map(option => option.value);
-                  setSelectedEmpresas(values);
-                }}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px]"
-              >
-                {empresas.map(empresa => (
-                  <option key={empresa.id} value={empresa.id}>
-                    {empresa.razao_social}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-sm text-gray-400">
-                Pressione Ctrl (Cmd no Mac) para selecionar múltiplas empresas
-              </p>
             </div>
 
             {!category && (

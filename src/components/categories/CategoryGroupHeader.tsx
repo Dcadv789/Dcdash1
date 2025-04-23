@@ -15,14 +15,16 @@ const CategoryGroupHeader: React.FC<CategoryGroupHeaderProps> = ({
 }) => {
   if (!group) {
     return (
-      <h3 className="text-lg font-medium text-white mb-4">
-        Sem Grupo
-      </h3>
+      <div className="bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center">
+        <h3 className="text-lg font-medium text-white">
+          Sem Grupo
+        </h3>
+      </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="bg-gray-800 rounded-lg px-4 py-3 flex justify-between items-center">
       <h3 className="text-lg font-medium text-white">{group.nome}</h3>
       <div className="flex gap-2">
         <button
