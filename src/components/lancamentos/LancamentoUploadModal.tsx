@@ -3,6 +3,7 @@ import { Download, Upload, X, AlertCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
+import { downloadExampleWorkbook, processExcelFile } from '../../utils/excel';
 
 interface LancamentoUploadModalProps {
   onClose: () => void;
@@ -10,7 +11,8 @@ interface LancamentoUploadModalProps {
 
 const LancamentoUploadModal: React.FC<LancamentoUploadModalProps> = ({ onClose }) => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  const [errors, setErrors] = useState<string[]>([]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -21,22 +23,31 @@ const LancamentoUploadModal: React.FC<LancamentoUploadModalProps> = ({ onClose }
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (!extension || !validExtensions.includes(extension)) {
       setStatus('error');
-      setErrorMessage('Formato de arquivo inválido. Por favor, use Excel (.xlsx, .xls) ou CSV.');
+      setMessage('Formato de arquivo inválido. Por favor, use Excel (.xlsx, .xls) ou CSV.');
       return;
     }
 
     setStatus('loading');
+    setMessage('');
+    setErrors([]);
 
     try {
-      // Aqui você implementaria a lógica real de upload
-      // Por enquanto, vamos simular um delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await processExcelFile(file);
       
-      // Simular sucesso
-      setStatus('success');
+      if (result.success) {
+        setStatus('success');
+        setMessage(result.message || 'Arquivo processado com sucesso!');
+      } else {
+        setStatus('error');
+        if (result.errors) {
+          setErrors(result.errors);
+        } else {
+          setMessage(result.message || 'Erro ao processar arquivo');
+        }
+      }
     } catch (err) {
       setStatus('error');
-      setErrorMessage('Ocorreu um erro ao processar o arquivo. Tente novamente.');
+      setMessage('Ocorreu um erro ao processar o arquivo. Tente novamente.');
     }
   }, []);
 
@@ -49,16 +60,6 @@ const LancamentoUploadModal: React.FC<LancamentoUploadModalProps> = ({ onClose }
     },
     multiple: false
   });
-
-  const handleDownloadExample = () => {
-    const exampleFileUrl = '/examples/modelo-lancamentos.xlsx';
-    const link = document.createElement('a');
-    link.href = exampleFileUrl;
-    link.download = 'modelo-lancamentos.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <Modal
@@ -81,7 +82,7 @@ const LancamentoUploadModal: React.FC<LancamentoUploadModalProps> = ({ onClose }
               <Button
                 variant="secondary"
                 icon={Download}
-                onClick={handleDownloadExample}
+                onClick={downloadExampleWorkbook}
               >
                 Baixar Modelo
               </Button>
@@ -94,10 +95,11 @@ const LancamentoUploadModal: React.FC<LancamentoUploadModalProps> = ({ onClose }
                   <div>
                     <p className="text-gray-300 font-medium">Campos Obrigatórios:</p>
                     <ul className="list-disc list-inside text-gray-400 space-y-1">
-                      <li>Data (DD/MM/YYYY)</li>
+                      <li>Mês (1 a 12)</li>
+                      <li>Ano (4 dígitos)</li>
                       <li>Tipo (receita ou despesa)</li>
                       <li>Valor (usar ponto para decimais)</li>
-                      <li>Código da Empresa</li>
+                      <li>CNPJ da Empresa (apenas números)</li>
                     </ul>
                   </div>
                   <div>
@@ -162,13 +164,23 @@ const LancamentoUploadModal: React.FC<LancamentoUploadModalProps> = ({ onClose }
 
         {status === 'success' && (
           <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-green-300">
-            Arquivo processado com sucesso! Os lançamentos foram importados.
+            {message}
           </div>
         )}
 
         {status === 'error' && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-300">
-            {errorMessage}
+            {message && <p className="mb-4">{message}</p>}
+            {errors.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-medium">Erros encontrados:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
