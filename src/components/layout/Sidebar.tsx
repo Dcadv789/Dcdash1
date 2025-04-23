@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, Building2, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { Home, Users, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { SystemStatus } from '../shared/SystemStatus';
 
 interface NavItemProps {
   to: string;
@@ -30,7 +30,11 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, collapsed }) => {
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const { signOut } = useAuth();
+  const [systemStatus] = useState({
+    database: true,
+    api: true,
+    storage: true
+  });
 
   return (
     <div 
@@ -57,19 +61,7 @@ const Sidebar: React.FC = () => {
         <NavItem to="/companies" icon={<Building2 size={20} />} label="Empresas" collapsed={collapsed} />
       </nav>
       
-      <div className="p-2 border-t border-gray-800">
-        <button 
-          onClick={signOut}
-          className={`
-            flex items-center px-4 py-3 rounded-lg text-gray-400 
-            hover:bg-red-600/20 hover:text-red-400 transition-all duration-200
-            ${collapsed ? 'justify-center' : ''}
-          `}
-        >
-          <LogOut size={20} />
-          {!collapsed && <span className="ml-3 font-medium">Sair</span>}
-        </button>
-      </div>
+      {!collapsed && <SystemStatus status={systemStatus} />}
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
+import { DebugLogs } from '../components/shared/DebugLogs';
 import CompanyCard from '../components/companies/CompanyCard';
 import CompanyViewModal from '../components/companies/CompanyViewModal';
 import CompanyEditModal from '../components/companies/CompanyEditModal';
@@ -161,14 +162,5 @@ const CompaniesPage: React.FC = () => {
     </div>
   );
 };
-
-const DebugLogs: React.FC<{ logs: string[] }> = ({ logs }) => (
-  <div className="bg-gray-800 p-4 rounded-lg mt-4">
-    <h3 className="text-white mb-2">Logs de execução:</h3>
-    {logs.map((log, index) => (
-      <div key={index} className="text-gray-400 text-sm">{log}</div>
-    ))}
-  </div>
-);
 
 export default CompaniesPage;

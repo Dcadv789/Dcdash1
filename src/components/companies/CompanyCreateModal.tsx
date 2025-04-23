@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Save, Edit } from 'lucide-react';
-import InputMask from 'react-input-mask';
 import { supabase } from '../../lib/supabase';
 import { Empresa, Socio } from '../../types/database';
+import { CompanyFormData, SocioFormData, FormErrors } from '../../types/forms';
+import { MASKS } from '../../constants';
+import { validateCompanyForm, validateSocioForm, cleanMask } from '../../utils/forms';
 
 interface CompanyCreateModalProps {
   onClose: () => void;
@@ -10,7 +12,7 @@ interface CompanyCreateModalProps {
 }
 
 const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CompanyFormData>({
     razao_social: '',
     nome_fantasia: '',
     cnpj: '',
@@ -19,15 +21,32 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
     email: '',
     telefone: '',
   });
-  const [socios, setSocios] = useState<Partial<Socio>[]>([]);
+  const [socios, setSocios] = useState<Partial<SocioFormData>[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [socioErrors, setSocioErrors] = useState<FormErrors[]>([]);
   const [editingSocio, setEditingSocio] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setErrors({});
+
+    // Validar formulário da empresa
+    const formErrors = validateCompanyForm(formData);
+    if (Object.keys(formErrors).length > 0) {
+      setErrors(formErrors);
+      setLoading(false);
+      return;
+    }
+
+    // Validar formulários dos sócios
+    const sociosErrors = socios.map(socio => validateSocioForm(socio));
+    if (sociosErrors.some(errors => Object.keys(errors).length > 0)) {
+      setSocioErrors(sociosErrors);
+      setLoading(false);
+      return;
+    }
 
     try {
       // Criar empresa
@@ -36,11 +55,11 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
         .insert({
           razao_social: formData.razao_social,
           nome_fantasia: formData.nome_fantasia || null,
-          cnpj: formData.cnpj.replace(/\D/g, '') || null,
+          cnpj: cleanMask(formData.cnpj) || null,
           data_inicio_contrato: formData.data_inicio_contrato || null,
           logo_url: formData.logo_url || null,
           email: formData.email || null,
-          telefone: formData.telefone.replace(/\D/g, '') || null,
+          telefone: cleanMask(formData.telefone) || null,
           ativa: true
         })
         .select()
@@ -56,8 +75,8 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
             socios.map(socio => ({
               ...socio,
               empresa_id: companyData.id,
-              cpf: socio.cpf?.replace(/\D/g, '') || null,
-              telefone: socio.telefone?.replace(/\D/g, '') || null
+              cpf: socio.cpf ? cleanMask(socio.cpf) : null,
+              telefone: socio.telefone ? cleanMask(socio.telefone) : null
             }))
           );
 
@@ -69,7 +88,9 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
         onClose();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar empresa');
+      setErrors({
+        submit: err instanceof Error ? err.message : 'Erro ao criar empresa'
+      });
     } finally {
       setLoading(false);
     }
@@ -84,9 +105,17 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
       telefone: ''
     }]);
     setEditingSocio(socios.length);
+    setSocioErrors([...socioErrors, {}]);
   };
 
   const handleSaveSocio = (index: number) => {
+    const socioErrors = validateSocioForm(socios[index]);
+    if (Object.keys(socioErrors).length > 0) {
+      const newSocioErrors = [...socioErrors];
+      newSocioErrors[index] = socioErrors;
+      setSocioErrors(newSocioErrors);
+      return;
+    }
     setEditingSocio(null);
   };
 
@@ -94,14 +123,22 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
     setEditingSocio(index);
   };
 
-  const handleUpdateSocio = (index: number, field: keyof Socio, value: any) => {
+  const handleUpdateSocio = (index: number, field: keyof SocioFormData, value: any) => {
     setSocios(socios.map((socio, i) => 
       i === index ? { ...socio, [field]: value } : socio
     ));
+    
+    // Limpar erro do campo quando ele for atualizado
+    const newSocioErrors = [...socioErrors];
+    if (newSocioErrors[index]) {
+      delete newSocioErrors[index][field];
+      setSocioErrors(newSocioErrors);
+    }
   };
 
   const handleRemoveSocio = (index: number) => {
     setSocios(socios.filter((_, i) => i !== index));
+    setSocioErrors(socioErrors.filter((_, i) => i !== index));
     if (editingSocio === index) {
       setEditingSocio(null);
     }
@@ -121,9 +158,9 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
+          {errors.submit && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-300">
-              {error}
+              {errors.submit}
             </div>
           )}
           
@@ -148,10 +185,20 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
               <input
                 type="text"
                 value={formData.razao_social}
-                onChange={(e) => setFormData(prev => ({ ...prev, razao_social: e.target.value }))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, razao_social: e.target.value }));
+                  if (errors.razao_social) {
+                    setErrors(prev => ({ ...prev, razao_social: '' }));
+                  }
+                }}
+                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.razao_social ? 'border-red-500' : 'border-gray-600'
+                }`}
                 required
               />
+              {errors.razao_social && (
+                <p className="mt-1 text-sm text-red-400">{errors.razao_social}</p>
+              )}
             </div>
             
             <div>
@@ -170,13 +217,24 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
               <label className="block text-sm font-medium text-gray-400 mb-1">
                 CNPJ *
               </label>
-              <InputMask
-                mask="99.999.999/9999-99"
+              <input
+                type="text"
                 value={formData.cnpj}
-                onChange={(e) => setFormData(prev => ({ ...prev, cnpj: e.target.value }))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const masked = applyMask(e.target.value, MASKS.CNPJ);
+                  setFormData(prev => ({ ...prev, cnpj: masked }));
+                  if (errors.cnpj) {
+                    setErrors(prev => ({ ...prev, cnpj: '' }));
+                  }
+                }}
+                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.cnpj ? 'border-red-500' : 'border-gray-600'
+                }`}
                 required
               />
+              {errors.cnpj && (
+                <p className="mt-1 text-sm text-red-400">{errors.cnpj}</p>
+              )}
             </div>
 
             <div>
@@ -186,20 +244,33 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, email: e.target.value }));
+                  if (errors.email) {
+                    setErrors(prev => ({ ...prev, email: '' }));
+                  }
+                }}
+                className={`w-full bg-gray-700 border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.email ? 'border-red-500' : 'border-gray-600'
+                }`}
                 placeholder="empresa@exemplo.com"
               />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
                 Telefone
               </label>
-              <InputMask
-                mask="(99) 99999-9999"
+              <input
+                type="text"
                 value={formData.telefone}
-                onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
+                onChange={(e) => {
+                  const masked = applyMask(e.target.value, MASKS.PHONE);
+                  setFormData(prev => ({ ...prev, telefone: masked }));
+                }}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="(00) 00000-0000"
               />
@@ -240,49 +311,75 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
                         type="text"
                         value={socio.nome}
                         onChange={(e) => handleUpdateSocio(index, 'nome', e.target.value)}
-                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                        className={`w-full bg-gray-600 border rounded-lg px-3 py-2 text-white ${
+                          socioErrors[index]?.nome ? 'border-red-500' : 'border-gray-500'
+                        }`}
                         placeholder="Nome do Sócio"
                         disabled={editingSocio !== index}
                       />
+                      {socioErrors[index]?.nome && (
+                        <p className="mt-1 text-sm text-red-400">{socioErrors[index].nome}</p>
+                      )}
                     </div>
                     <div>
-                      <InputMask
-                        mask="999.999.999-99"
-                        value={socio.cpf || ''}
-                        onChange={(e) => handleUpdateSocio(index, 'cpf', e.target.value)}
-                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                      <input
+                        type="text"
+                        value={socio.cpf}
+                        onChange={(e) => {
+                          const masked = applyMask(e.target.value, MASKS.CPF);
+                          handleUpdateSocio(index, 'cpf', masked);
+                        }}
+                        className={`w-full bg-gray-600 border rounded-lg px-3 py-2 text-white ${
+                          socioErrors[index]?.cpf ? 'border-red-500' : 'border-gray-500'
+                        }`}
                         placeholder="CPF"
                         disabled={editingSocio !== index}
                       />
+                      {socioErrors[index]?.cpf && (
+                        <p className="mt-1 text-sm text-red-400">{socioErrors[index].cpf}</p>
+                      )}
                     </div>
                     <div>
                       <input
                         type="number"
                         value={socio.percentual || ''}
                         onChange={(e) => handleUpdateSocio(index, 'percentual', parseFloat(e.target.value))}
-                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                        className={`w-full bg-gray-600 border rounded-lg px-3 py-2 text-white ${
+                          socioErrors[index]?.percentual ? 'border-red-500' : 'border-gray-500'
+                        }`}
                         placeholder="Percentual"
                         min="0"
                         max="100"
                         step="0.01"
                         disabled={editingSocio !== index}
                       />
+                      {socioErrors[index]?.percentual && (
+                        <p className="mt-1 text-sm text-red-400">{socioErrors[index].percentual}</p>
+                      )}
                     </div>
                     <div>
                       <input
                         type="email"
                         value={socio.email || ''}
                         onChange={(e) => handleUpdateSocio(index, 'email', e.target.value)}
-                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                        className={`w-full bg-gray-600 border rounded-lg px-3 py-2 text-white ${
+                          socioErrors[index]?.email ? 'border-red-500' : 'border-gray-500'
+                        }`}
                         placeholder="Email"
                         disabled={editingSocio !== index}
                       />
+                      {socioErrors[index]?.email && (
+                        <p className="mt-1 text-sm text-red-400">{socioErrors[index].email}</p>
+                      )}
                     </div>
                     <div>
-                      <InputMask
-                        mask="(99) 99999-9999"
+                      <input
+                        type="text"
                         value={socio.telefone || ''}
-                        onChange={(e) => handleUpdateSocio(index, 'telefone', e.target.value)}
+                        onChange={(e) => {
+                          const masked = applyMask(e.target.value, MASKS.PHONE);
+                          handleUpdateSocio(index, 'telefone', masked);
+                        }}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="Telefone"
                         disabled={editingSocio !== index}
