@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Building2, Mail, Phone, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { Empresa } from '../../types/database';
 
 interface CompanyViewModalProps {
@@ -21,35 +21,88 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
           </button>
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="p-6">
+          <div className="flex items-center justify-center mb-6">
+            {company.logo_url ? (
+              <img 
+                src={company.logo_url} 
+                alt={company.razao_social} 
+                className="w-32 h-32 object-contain rounded-lg"
+              />
+            ) : (
+              <div className="w-32 h-32 bg-gray-700 rounded-lg flex items-center justify-center">
+                <Building2 size={64} className="text-gray-500" />
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400">Razão Social</label>
-              <p className="text-white">{company.razao_social}</p>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Razão Social</label>
+              <p className="text-white flex items-center gap-2">
+                <Building2 size={18} className="text-gray-400" />
+                {company.razao_social}
+              </p>
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-400">Nome Fantasia</label>
-              <p className="text-white">{company.nome_fantasia || '-'}</p>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Nome Fantasia</label>
+              <p className="text-white flex items-center gap-2">
+                <Building2 size={18} className="text-gray-400" />
+                {company.nome_fantasia || '-'}
+              </p>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-400">CNPJ</label>
-              <p className="text-white">{company.cnpj || '-'}</p>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+              <p className="text-white flex items-center gap-2">
+                <Mail size={18} className="text-gray-400" />
+                {company.email || '-'}
+              </p>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-400">Status</label>
-              <p className="text-white">{company.ativa ? 'Ativa' : 'Inativa'}</p>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Telefone</label>
+              <p className="text-white flex items-center gap-2">
+                <Phone size={18} className="text-gray-400" />
+                {company.telefone || '-'}
+              </p>
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-400">Data de Início do Contrato</label>
-              <p className="text-white">
+              <label className="block text-sm font-medium text-gray-400 mb-1">CNPJ</label>
+              <p className="text-white flex items-center gap-2">
+                <Building2 size={18} className="text-gray-400" />
+                {company.cnpj || '-'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Status</label>
+              <p className="text-white flex items-center gap-2">
+                {company.ativa ? (
+                  <CheckCircle2 size={18} className="text-green-500" />
+                ) : (
+                  <XCircle size={18} className="text-red-500" />
+                )}
+                {company.ativa ? 'Ativa' : 'Inativa'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Data de Início do Contrato</label>
+              <p className="text-white flex items-center gap-2">
+                <Calendar size={18} className="text-gray-400" />
                 {company.data_inicio_contrato
                   ? new Date(company.data_inicio_contrato).toLocaleDateString('pt-BR')
                   : '-'}
               </p>
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-gray-400">Data de Cadastro</label>
-              <p className="text-white">
+              <label className="block text-sm font-medium text-gray-400 mb-1">Data de Cadastro</label>
+              <p className="text-white flex items-center gap-2">
+                <Clock size={18} className="text-gray-400" />
                 {new Date(company.created_at).toLocaleDateString('pt-BR')}
               </p>
             </div>

@@ -1,43 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import InputMask from 'react-input-mask';
-import { Empresa, Socio } from '../../types/database';
 import { supabase } from '../../lib/supabase';
+import { Empresa, Socio } from '../../types/database';
 
-interface CompanyEditModalProps {
-  company: Empresa;
+interface CompanyCreateModalProps {
   onClose: () => void;
-  onSave: (updatedCompany: Empresa) => void;
+  onSave: (newCompany: Empresa) => void;
 }
 
-const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, onSave }) => {
+const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    razao_social: company.razao_social,
-    nome_fantasia: company.nome_fantasia || '',
-    cnpj: company.cnpj || '',
-    data_inicio_contrato: company.data_inicio_contrato || '',
-    logo_url: company.logo_url || '',
-    email: company.email || '',
-    telefone: company.telefone || '',
+    razao_social: '',
+    nome_fantasia: '',
+    cnpj: '',
+    data_inicio_contrato: '',
+    logo_url: '',
+    email: '',
+    telefone: '',
   });
-  const [socios, setSocios] = useState<Socio[]>([]);
+  const [socios, setSocios] = useState<Partial<Socio>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchSocios();
-  }, []);
-
-  const fetchSocios = async () => {
-    const { data, error } = await supabase
-      .from('socios')
-      .select('*')
-      .eq('empresa_id', company.id);
-
-    if (!error && data) {
-      setSocios(data);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +29,10 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
     setError(null);
 
     try {
-      const { data, error } = await supabase
+      // Criar empresa
+      const { data: companyData, error: companyError } = await supabase
         .from('empresas')
-        .update({
+        .insert({
           razao_social: formData.razao_social,
           nome_fantasia: formData.nome_fantasia || null,
           cnpj: formData.cnpj.replace(/\D/g, '') || null,
@@ -55,65 +40,57 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
           logo_url: formData.logo_url || null,
           email: formData.email || null,
           telefone: formData.telefone || null,
+          ativa: true
         })
-        .eq('id', company.id)
         .select()
         .single();
 
-      if (error) throw error;
-      if (data) {
-        onSave(data as Empresa);
+      if (companyError) throw companyError;
+
+      // Se houver sócios, criar registros
+      if (socios.length > 0 && companyData) {
+        const { error: sociosError } = await supabase
+          .from('socios')
+          .insert(
+            socios.map(socio => ({
+              ...socio,
+              empresa_id: companyData.id
+            }))
+          );
+
+        if (sociosError) throw sociosError;
+      }
+
+      if (companyData) {
+        onSave(companyData as Empresa);
         onClose();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar empresa');
+      setError(err instanceof Error ? err.message : 'Erro ao criar empresa');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddSocio = async () => {
-    const { data, error } = await supabase
-      .from('socios')
-      .insert({
-        empresa_id: company.id,
-        nome: 'Novo Sócio',
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setSocios([...socios, data]);
-    }
+  const handleAddSocio = () => {
+    setSocios([...socios, { nome: '' }]);
   };
 
-  const handleUpdateSocio = async (socio: Socio, field: keyof Socio, value: any) => {
-    const { error } = await supabase
-      .from('socios')
-      .update({ [field]: value })
-      .eq('id', socio.id);
-
-    if (!error) {
-      setSocios(socios.map(s => s.id === socio.id ? { ...s, [field]: value } : s));
-    }
+  const handleUpdateSocio = (index: number, field: keyof Socio, value: any) => {
+    setSocios(socios.map((socio, i) => 
+      i === index ? { ...socio, [field]: value } : socio
+    ));
   };
 
-  const handleDeleteSocio = async (socioId: string) => {
-    const { error } = await supabase
-      .from('socios')
-      .delete()
-      .eq('id', socioId);
-
-    if (!error) {
-      setSocios(socios.filter(s => s.id !== socioId));
-    }
+  const handleRemoveSocio = (index: number) => {
+    setSocios(socios.filter((_, i) => i !== index));
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl w-full max-w-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">Editar Empresa</h2>
+          <h2 className="text-xl font-semibold text-white">Nova Empresa</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
@@ -145,7 +122,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
-                Razão Social
+                Razão Social *
               </label>
               <input
                 type="text"
@@ -170,13 +147,14 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
             
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
-                CNPJ
+                CNPJ *
               </label>
               <InputMask
                 mask="99.999.999/9999-99"
                 value={formData.cnpj}
                 onChange={(e) => setFormData(prev => ({ ...prev, cnpj: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
             </div>
 
@@ -231,14 +209,14 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
             </div>
 
             <div className="space-y-4">
-              {socios.map((socio) => (
-                <div key={socio.id} className="bg-gray-700 p-4 rounded-lg">
+              {socios.map((socio, index) => (
+                <div key={index} className="bg-gray-700 p-4 rounded-lg">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <input
                         type="text"
                         value={socio.nome}
-                        onChange={(e) => handleUpdateSocio(socio, 'nome', e.target.value)}
+                        onChange={(e) => handleUpdateSocio(index, 'nome', e.target.value)}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="Nome do Sócio"
                       />
@@ -247,7 +225,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                       <InputMask
                         mask="999.999.999-99"
                         value={socio.cpf || ''}
-                        onChange={(e) => handleUpdateSocio(socio, 'cpf', e.target.value)}
+                        onChange={(e) => handleUpdateSocio(index, 'cpf', e.target.value)}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="CPF"
                       />
@@ -256,7 +234,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                       <input
                         type="number"
                         value={socio.percentual || ''}
-                        onChange={(e) => handleUpdateSocio(socio, 'percentual', parseFloat(e.target.value))}
+                        onChange={(e) => handleUpdateSocio(index, 'percentual', parseFloat(e.target.value))}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="Percentual"
                         min="0"
@@ -267,7 +245,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                     <div>
                       <button
                         type="button"
-                        onClick={() => handleDeleteSocio(socio.id)}
+                        onClick={() => handleRemoveSocio(index)}
                         className="text-red-400 hover:text-red-300"
                       >
                         <Trash2 size={20} />
@@ -301,4 +279,4 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
   );
 };
 
-export default CompanyEditModal
+export default CompanyCreateModal

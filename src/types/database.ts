@@ -23,4 +23,18 @@ export interface Empresa {
   ativa: boolean;
   data_inicio_contrato: string | null;
   created_at: string;
+  logo_url: string | null;
+  email: string | null;
+  telefone: string | null;
+}
+
+export interface Socio {
+  id: string;
+  empresa_id: string;
+  nome: string;
+  cpf: string | null;
+  percentual: number | null;
+  email: string | null;
+  telefone: string | null;
+  created_at: string;
 }

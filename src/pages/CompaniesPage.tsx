@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Empresa } from '../types/database';
 import CompanyCard from '../components/companies/CompanyCard';
 import CompanyViewModal from '../components/companies/CompanyViewModal';
 import CompanyEditModal from '../components/companies/CompanyEditModal';
+import CompanyCreateModal from '../components/companies/CompanyCreateModal';
 
 const CompaniesPage: React.FC = () => {
   const [companies, setCompanies] = useState<Empresa[]>([]);
@@ -13,6 +15,7 @@ const CompaniesPage: React.FC = () => {
   const [selectedCompany, setSelectedCompany] = useState<Empresa | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const addLog = (message: string) => {
     setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
@@ -61,6 +64,11 @@ const CompaniesPage: React.FC = () => {
   const handleSaveEdit = (updatedCompany: Empresa) => {
     setCompanies(companies.map(c => c.id === updatedCompany.id ? updatedCompany : c));
     addLog(`Empresa ${updatedCompany.razao_social} atualizada com sucesso`);
+  };
+
+  const handleCreate = (newCompany: Empresa) => {
+    setCompanies([...companies, newCompany]);
+    addLog(`Empresa ${newCompany.razao_social} criada com sucesso`);
   };
 
   const handleDelete = async (company: Empresa) => {
@@ -125,6 +133,13 @@ const CompaniesPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold text-white">Empresas ({companies.length})</h2>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+        >
+          <Plus size={20} />
+          Adicionar Empresa
+        </button>
       </div>
 
       {error ? (
@@ -175,6 +190,13 @@ const CompaniesPage: React.FC = () => {
             setIsEditModalOpen(false);
           }}
           onSave={handleSaveEdit}
+        />
+      )}
+
+      {isCreateModalOpen && (
+        <CompanyCreateModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onSave={handleCreate}
         />
       )}
     </div>
