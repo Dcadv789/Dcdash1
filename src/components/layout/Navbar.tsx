@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Settings, User, LogOut, ChevronDown, Users, Building2, Database, ChevronRight } from 'lucide-react';
+import { Bell, Settings, User, LogOut, ChevronDown, Users, Building2, Database, ChevronRight, BarChart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Usuario } from '../../types/database';
@@ -122,13 +122,13 @@ const Navbar: React.FC = () => {
                       onClick={() => navigate('/categories')}
                       className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
                     >
-                      Categoria
+                      Categorias
                     </button>
                     <button
                       onClick={() => navigate('/indicators')}
                       className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
                     >
-                      Indicador
+                      Indicadores
                     </button>
                   </div>
                 )}

@@ -69,3 +69,34 @@ export interface EmpresaCategoria {
   categoria?: Categoria;
   empresa?: Empresa;
 }
+
+export interface Indicador {
+  id: string;
+  codigo: string;
+  nome: string;
+  descricao: string | null;
+  tipo: 'único' | 'composto';
+  tipo_dado: 'moeda' | 'numero' | 'percentual';
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface IndicadorEmpresa {
+  id: string;
+  indicador_id: string;
+  empresa_id: string;
+  criado_em: string;
+  indicador?: Indicador;
+  empresa?: Empresa;
+}
+
+export interface IndicadorComposicao {
+  id: string;
+  indicador_id: string;
+  componente_categoria_id: string | null;
+  componente_indicador_id: string | null;
+  criado_em: string;
+  categoria?: Categoria;
+  indicador?: Indicador;
+}
