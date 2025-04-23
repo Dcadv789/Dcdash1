@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Lancamento, Empresa } from '../types/database';
+import { Plus, Upload } from 'lucide-react';
+import { Lancamento, Empresa, Categoria, Indicador } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
@@ -11,16 +11,20 @@ import LancamentoFilters from '../components/lancamentos/LancamentoFilters';
 import LancamentoList from '../components/lancamentos/LancamentoList';
 import LancamentoModal from '../components/lancamentos/LancamentoModal';
 import LancamentoViewModal from '../components/lancamentos/LancamentoViewModal';
+import LancamentoUploadModal from '../components/lancamentos/LancamentoUploadModal';
 
 const LancamentosPage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<'todos' | 'receita' | 'despesa'>('todos');
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedCategoria, setSelectedCategoria] = useState<string>('');
+  const [selectedIndicador, setSelectedIndicador] = useState<string>('');
   const [selectedLancamento, setSelectedLancamento] = useState<Lancamento | undefined>();
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const { data: empresas } = useSupabaseQuery<Empresa>({
     query: () => supabase
@@ -28,6 +32,22 @@ const LancamentosPage: React.FC = () => {
       .select('id, razao_social')
       .eq('ativa', true)
       .order('razao_social'),
+  });
+
+  const { data: categorias } = useSupabaseQuery<Categoria>({
+    query: () => supabase
+      .from('categorias')
+      .select('*')
+      .eq('ativo', true)
+      .order('nome'),
+  });
+
+  const { data: indicadores } = useSupabaseQuery<Indicador>({
+    query: () => supabase
+      .from('indicadores')
+      .select('*')
+      .eq('ativo', true)
+      .order('nome'),
   });
 
   const { data: lancamentos, loading, error, refetch } = useSupabaseQuery<Lancamento>({
@@ -63,9 +83,17 @@ const LancamentosPage: React.FC = () => {
         query = query.eq('empresa_id', selectedEmpresa);
       }
 
+      if (selectedCategoria) {
+        query = query.eq('categoria_id', selectedCategoria);
+      }
+
+      if (selectedIndicador) {
+        query = query.eq('indicador_id', selectedIndicador);
+      }
+
       return query.order('mes', { ascending: false });
     },
-    dependencies: [selectedType, selectedEmpresa, selectedYear, selectedMonth],
+    dependencies: [selectedType, selectedEmpresa, selectedYear, selectedMonth, selectedCategoria, selectedIndicador],
   });
 
   const handleDelete = async (lancamento: Lancamento) => {
@@ -95,12 +123,21 @@ const LancamentosPage: React.FC = () => {
           <h2 className="text-2xl font-semibold text-white">Lançamentos</h2>
           <p className="text-gray-400 mt-1">Gerencie os lançamentos financeiros</p>
         </div>
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          icon={Plus}
-        >
-          Novo Lançamento
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            icon={Plus}
+          >
+            Novo Lançamento
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setIsUploadModalOpen(true)}
+            icon={Upload}
+          >
+            Upload
+          </Button>
+        </div>
       </div>
 
       <LancamentoFilters
@@ -108,11 +145,17 @@ const LancamentosPage: React.FC = () => {
         selectedEmpresa={selectedEmpresa}
         selectedYear={selectedYear}
         selectedMonth={selectedMonth}
+        selectedCategoria={selectedCategoria}
+        selectedIndicador={selectedIndicador}
         empresas={empresas}
+        categorias={categorias}
+        indicadores={indicadores}
         onTypeChange={setSelectedType}
         onEmpresaChange={setSelectedEmpresa}
         onYearChange={setSelectedYear}
         onMonthChange={setSelectedMonth}
+        onCategoriaChange={setSelectedCategoria}
+        onIndicadorChange={setSelectedIndicador}
       />
 
       {lancamentos.length === 0 ? (
@@ -151,6 +194,12 @@ const LancamentosPage: React.FC = () => {
             setIsEditModalOpen(false);
           }}
           onSave={refetch}
+        />
+      )}
+
+      {isUploadModalOpen && (
+        <LancamentoUploadModal
+          onClose={() => setIsUploadModalOpen(false)}
         />
       )}
     </div>

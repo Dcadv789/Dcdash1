@@ -1,0 +1,43 @@
+PK
+     ۃ�W               [Content_Types].xml
+     ۃ�W               _rels/.rels
+     ۃ�W               xl/workbook.xml
+     ۃ�W               xl/_rels/workbook.xml.rels
+     ۃ�W               xl/worksheets/sheet1.xml
+     ۃ�W               xl/worksheets/sheet2.xml
+     ۃ�W               xl/styles.xml
+     ۃ�W               xl/theme/theme1.xml
+     ۃ�W               docProps/core.xml
+     ۃ�W               docProps/app.xml
+
+[Arquivo Excel XLSX binário com:
+
+Aba 1: Modelo
+Colunas:
+A. Data * (formato: dd/mm/yyyy)
+B. Tipo * (lista suspensa: receita, despesa)
+C. Valor * (formato: R$ #.##0,00)
+D. Código da Categoria (texto)
+E. Código do Indicador (texto)
+F. Código da Empresa * (texto)
+G. Descrição (texto)
+
+Formatação:
+- Cabeçalho em negrito com fundo cinza claro
+- Asterisco vermelho nos campos obrigatórios
+- Primeira linha congelada
+- Filtros habilitados
+- Largura das colunas ajustada
+- Validação de dados nas colunas relevantes
+- Cores alternadas nas linhas (cinza muito claro)
+
+Dados de exemplo:
+1. 01/03/2024 | receita | 1500,00 | R0001 | | EMP001 | Venda de serviços
+2. 05/03/2024 | despesa | 350,00 | D0001 | | EMP001 | Material de escritório
+3. 10/03/2024 | receita | 2000,00 | | I0001 | EMP002 | Consultoria mensal
+
+Aba 2: Instruções
+- Explicação detalhada do preenchimento
+- Exemplos de códigos válidos
+- Lista de campos obrigatórios e opcionais
+- Observações importantes sobre regras de negócio]
