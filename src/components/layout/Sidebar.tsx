@@ -35,8 +35,8 @@ const Sidebar: React.FC = () => {
   return (
     <div 
       className={`
-        fixed left-4 top-4 bottom-4 bg-black rounded-2xl transition-all duration-300 flex flex-col z-10
-        ${collapsed ? 'w-16' : 'w-64'}
+        bg-black rounded-2xl flex flex-col
+        ${collapsed ? 'w-20' : 'w-64'}
       `}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
@@ -53,8 +53,8 @@ const Sidebar: React.FC = () => {
       
       <nav className="flex-1 p-2 space-y-2">
         <NavItem to="/" icon={<Home size={20} />} label="Home" collapsed={collapsed} />
-        <NavItem to="/users" icon={<Users size={20} />} label="Users" collapsed={collapsed} />
-        <NavItem to="/companies" icon={<Building2 size={20} />} label="Companies" collapsed={collapsed} />
+        <NavItem to="/users" icon={<Users size={20} />} label="Usuários" collapsed={collapsed} />
+        <NavItem to="/companies" icon={<Building2 size={20} />} label="Empresas" collapsed={collapsed} />
       </nav>
       
       <div className="p-2 border-t border-gray-800">
@@ -67,7 +67,7 @@ const Sidebar: React.FC = () => {
           `}
         >
           <LogOut size={20} />
-          {!collapsed && <span className="ml-3 font-medium">Logout</span>}
+          {!collapsed && <span className="ml-3 font-medium">Sair</span>}
         </button>
       </div>
     </div>

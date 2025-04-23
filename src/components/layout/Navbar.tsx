@@ -15,7 +15,7 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 left-[calc(4rem+16px)] sm:left-[calc(16rem+16px)] bg-black rounded-2xl p-4 flex items-center justify-between z-10 transition-all duration-300">
+    <div className="bg-black rounded-2xl p-4 flex items-center justify-between z-10">
       <h1 className="text-white text-xl font-semibold">{getPageTitle()}</h1>
       <div className="flex items-center space-x-4">
         <button className="text-gray-400 hover:text-white transition-colors duration-200">
