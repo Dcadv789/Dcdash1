@@ -10,6 +10,7 @@ import CompaniesPage from './pages/CompaniesPage';
 import ProfilePage from './pages/ProfilePage';
 import CategoriesPage from './pages/CategoriesPage';
 import IndicatorsPage from './pages/IndicatorsPage';
+import LancamentosPage from './pages/LancamentosPage';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="indicators" element={<IndicatorsPage />} />
+            <Route path="lancamentos" element={<LancamentosPage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />

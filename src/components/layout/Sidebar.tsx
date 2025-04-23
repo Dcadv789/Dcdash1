@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Users, Building2, ChevronLeft, ChevronRight, Database, BarChart } from 'lucide-react';
 import { SystemStatus } from '../shared/SystemStatus';
 
 interface NavItemProps {
@@ -59,6 +59,9 @@ const Sidebar: React.FC = () => {
         <NavItem to="/" icon={<Home size={20} />} label="Home" collapsed={collapsed} />
         <NavItem to="/users" icon={<Users size={20} />} label="Usuários" collapsed={collapsed} />
         <NavItem to="/companies" icon={<Building2 size={20} />} label="Empresas" collapsed={collapsed} />
+        <NavItem to="/lancamentos" icon={<BarChart size={20} />} label="Lançamentos" collapsed={collapsed} />
+        <NavItem to="/categories" icon={<Database size={20} />} label="Categorias" collapsed={collapsed} />
+        <NavItem to="/indicators" icon={<Database size={20} />} label="Indicadores" collapsed={collapsed} />
       </nav>
       
       {!collapsed && <SystemStatus status={systemStatus} />}

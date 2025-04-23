@@ -100,3 +100,20 @@ export interface IndicadorComposicao {
   categoria?: Categoria;
   indicador?: Indicador;
 }
+
+export interface Lancamento {
+  id: string;
+  valor: number;
+  tipo: 'receita' | 'despesa';
+  mes: number;
+  ano: number;
+  categoria_id: string | null;
+  indicador_id: string | null;
+  empresa_id: string;
+  descricao: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  categoria?: Categoria;
+  indicador?: Indicador;
+  empresa?: Empresa;
+}
