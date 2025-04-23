@@ -1,0 +1,24 @@
+/*
+  # Adicionar políticas de acesso RLS
+
+  1. Políticas
+    - Permitir que usuários autenticados vejam todos os usuários
+    - Permitir que usuários autenticados vejam todas as empresas
+    
+  2. Segurança
+    - Mantém a segurança dos dados permitindo apenas acesso autenticado
+*/
+
+-- Política para visualização de usuários
+CREATE POLICY "Usuários autenticados podem ver todos os usuários"
+ON public.usuarios
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- Política para visualização de empresas
+CREATE POLICY "Usuários autenticados podem ver todas as empresas"
+ON public.empresas
+FOR SELECT
+TO authenticated
+USING (true);
