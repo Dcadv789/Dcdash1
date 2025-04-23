@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Usuario } from '../types/database';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { LoadingSpinner } from '../components/shared/LoadingSpinner';
+import { ErrorAlert } from '../components/shared/ErrorAlert';
+import { Button } from '../components/shared/Button';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import { Pencil } from 'lucide-react';
 
 const ProfilePage: React.FC = () => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Usuario | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     nome: '',
@@ -17,11 +18,26 @@ const ProfilePage: React.FC = () => {
     telefone: '',
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  const { data: profile, loading, error, refetch } = useSupabaseQuery<Usuario>({
+    query: () => supabase
+      .from('usuarios')
+      .select(`
+        *,
+        empresa:empresas (
+          id,
+          razao_social,
+          nome_fantasia,
+          cnpj,
+          logo_url
+        )
+      `)
+      .eq('auth_id', user?.id)
+      .single(),
+    dependencies: [user?.id],
+  });
 
-  useEffect(() => {
+  // Atualiza o formulário quando o perfil é carregado
+  React.useEffect(() => {
     if (profile) {
       setFormData({
         nome: profile.nome,
@@ -30,35 +46,6 @@ const ProfilePage: React.FC = () => {
       });
     }
   }, [profile]);
-
-  const fetchProfile = async () => {
-    try {
-      if (!user?.id) return;
-
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select(`
-          *,
-          empresa:empresas (
-            id,
-            razao_social,
-            nome_fantasia,
-            cnpj,
-            logo_url
-          )
-        `)
-        .eq('auth_id', user.id)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (err) {
-      console.error('Erro ao carregar perfil:', err);
-      setError('Não foi possível carregar os dados do perfil');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +61,7 @@ const ProfilePage: React.FC = () => {
 
       if (error) throw error;
 
-      setProfile(prev => prev ? { ...prev, ...formData } : null);
+      await refetch();
       setIsEditing(false);
     } catch (err) {
       console.error('Erro ao atualizar perfil:', err);
@@ -83,27 +70,15 @@ const ProfilePage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
-    return (
-      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-300">
-        {error}
-      </div>
-    );
+    return <ErrorAlert message="Não foi possível carregar os dados do perfil" />;
   }
 
   if (!profile) {
-    return (
-      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-yellow-300">
-        Perfil não encontrado
-      </div>
-    );
+    return <ErrorAlert message="Perfil não encontrado" />;
   }
 
   return (
@@ -114,13 +89,13 @@ const ProfilePage: React.FC = () => {
         <div className="bg-gray-800 rounded-xl p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-white">Informações Pessoais</h3>
-            <button
+            <Button
+              variant="secondary"
+              icon={Pencil}
               onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center gap-2 px-3 py-1.5 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-600/20 rounded-lg transition-colors"
             >
-              <Pencil size={16} />
               {isEditing ? 'Cancelar' : 'Editar'}
-            </button>
+            </Button>
           </div>
 
           {isEditing ? (
@@ -155,12 +130,9 @@ const ProfilePage: React.FC = () => {
                 />
               </div>
               <div className="flex justify-end pt-4">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-                >
+                <Button type="submit">
                   Salvar
-                </button>
+                </Button>
               </div>
             </form>
           ) : (

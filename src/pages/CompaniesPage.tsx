@@ -1,54 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { Empresa } from '../types/database';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { useDebugLogs } from '../hooks/useDebugLogs';
+import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from '../components/shared/LoadingSpinner';
+import { ErrorAlert } from '../components/shared/ErrorAlert';
+import { EmptyState } from '../components/shared/EmptyState';
+import { Button } from '../components/shared/Button';
 import CompanyCard from '../components/companies/CompanyCard';
 import CompanyViewModal from '../components/companies/CompanyViewModal';
 import CompanyEditModal from '../components/companies/CompanyEditModal';
 import CompanyCreateModal from '../components/companies/CompanyCreateModal';
 
 const CompaniesPage: React.FC = () => {
-  const [companies, setCompanies] = useState<Empresa[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  // State
   const [selectedCompany, setSelectedCompany] = useState<Empresa | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const addLog = (message: string) => {
-    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
-  };
+  // Hooks
+  const { logs, addLog } = useDebugLogs();
+  const { data: companies, loading, error, refetch } = useSupabaseQuery<Empresa>({
+    query: () => supabase.from('empresas').select('*'),
+  });
 
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
-
-  const fetchCompanies = async () => {
-    try {
-      addLog('Iniciando busca de empresas...');
-
-      const { data, error } = await supabase
-        .from('empresas')
-        .select('*');
-
-      if (error) {
-        addLog(`Erro na consulta: ${error.message}`);
-        throw error;
-      }
-
-      addLog(`Consulta retornou ${data?.length || 0} empresas`);
-      setCompanies(data || []);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      addLog(`Erro ao buscar empresas: ${errorMessage}`);
-      setError(`Erro ao carregar empresas: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Handlers
   const handleView = (company: Empresa) => {
     setSelectedCompany(company);
     setIsViewModalOpen(true);
@@ -62,12 +40,12 @@ const CompaniesPage: React.FC = () => {
   };
 
   const handleSaveEdit = (updatedCompany: Empresa) => {
-    setCompanies(companies.map(c => c.id === updatedCompany.id ? updatedCompany : c));
+    refetch();
     addLog(`Empresa ${updatedCompany.razao_social} atualizada com sucesso`);
   };
 
   const handleCreate = (newCompany: Empresa) => {
-    setCompanies([...companies, newCompany]);
+    refetch();
     addLog(`Empresa ${newCompany.razao_social} criada com sucesso`);
   };
 
@@ -83,7 +61,7 @@ const CompaniesPage: React.FC = () => {
 
       if (error) throw error;
       
-      setCompanies(companies.filter(c => c.id !== company.id));
+      refetch();
       addLog(`Empresa ${company.razao_social} excluída com sucesso`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -102,9 +80,7 @@ const CompaniesPage: React.FC = () => {
 
       if (error) throw error;
       
-      setCompanies(companies.map(c => 
-        c.id === company.id ? { ...c, ativa: !c.ativa } : c
-      ));
+      refetch();
       addLog(`Status da empresa ${company.razao_social} atualizado com sucesso`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -116,15 +92,8 @@ const CompaniesPage: React.FC = () => {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-        </div>
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-white mb-2">Logs de carregamento:</h3>
-          {debugLogs.map((log, index) => (
-            <div key={index} className="text-gray-400 text-sm">{log}</div>
-          ))}
-        </div>
+        <LoadingSpinner />
+        <DebugLogs logs={logs} />
       </div>
     );
   }
@@ -133,23 +102,18 @@ const CompaniesPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold text-white">Empresas</h2>
-        <button
+        <Button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+          icon={Plus}
         >
-          <Plus size={20} />
           Adicionar Empresa
-        </button>
+        </Button>
       </div>
 
       {error ? (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-300">
-          {error}
-        </div>
+        <ErrorAlert message={error} />
       ) : companies.length === 0 ? (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-blue-300">
-          Nenhuma empresa encontrada.
-        </div>
+        <EmptyState message="Nenhuma empresa encontrada." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {companies.map(company => (
@@ -165,12 +129,7 @@ const CompaniesPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-gray-800 p-4 rounded-lg mt-4">
-        <h3 className="text-white mb-2">Logs de execução:</h3>
-        {debugLogs.map((log, index) => (
-          <div key={index} className="text-gray-400 text-sm">{log}</div>
-        ))}
-      </div>
+      <DebugLogs logs={logs} />
 
       {selectedCompany && isViewModalOpen && (
         <CompanyViewModal
@@ -202,5 +161,14 @@ const CompaniesPage: React.FC = () => {
     </div>
   );
 };
+
+const DebugLogs: React.FC<{ logs: string[] }> = ({ logs }) => (
+  <div className="bg-gray-800 p-4 rounded-lg mt-4">
+    <h3 className="text-white mb-2">Logs de execução:</h3>
+    {logs.map((log, index) => (
+      <div key={index} className="text-gray-400 text-sm">{log}</div>
+    ))}
+  </div>
+);
 
 export default CompaniesPage;

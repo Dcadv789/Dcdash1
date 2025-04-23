@@ -1,76 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Usuario } from '../types/database';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { useDebugLogs } from '../hooks/useDebugLogs';
+import { LoadingSpinner } from '../components/shared/LoadingSpinner';
+import { ErrorAlert } from '../components/shared/ErrorAlert';
+import { EmptyState } from '../components/shared/EmptyState';
 import UserList from '../components/users/UserList';
 import UserViewModal from '../components/users/UserViewModal';
 import UserEditModal from '../components/users/UserEditModal';
 
 const UsersPage: React.FC = () => {
-  const [users, setUsers] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  // Estado
   const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const addLog = (message: string) => {
-    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
-  };
+  // Hooks
+  const { logs, addLog } = useDebugLogs();
+  const { data: users, loading, error, refetch } = useSupabaseQuery<Usuario>({
+    query: () => supabase
+      .from('usuarios')
+      .select(`
+        *,
+        empresa:empresas(razao_social)
+      `),
+  });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      addLog('Iniciando busca de usuários...');
-
-      if (!supabase) {
-        throw new Error('Cliente Supabase não inicializado');
-      }
-
-      addLog('Fazendo consulta inicial de teste...');
-      const { data: testData, error: testError } = await supabase
-        .from('usuarios')
-        .select('*');
-
-      if (testError) {
-        addLog(`Erro no teste inicial: ${testError.message}`);
-        throw testError;
-      }
-
-      addLog(`Teste inicial retornou ${testData?.length || 0} usuários`);
-
-      addLog('Fazendo consulta completa com dados da empresa...');
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select(`
-          *,
-          empresa:empresas(razao_social)
-        `);
-
-      if (error) {
-        addLog(`Erro na consulta completa: ${error.message}`);
-        throw error;
-      }
-
-      const formattedUsers = data?.map(user => ({
-        ...user,
-        empresa: user.empresa || null
-      })) || [];
-
-      addLog(`Consulta completa retornou ${formattedUsers.length} usuários`);
-      setUsers(formattedUsers);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      addLog(`Erro ao buscar usuários: ${errorMessage}`);
-      setError(`Erro ao carregar usuários: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Manipuladores de eventos
   const handleView = (user: Usuario) => {
     setSelectedUser(user);
     setIsViewModalOpen(true);
@@ -84,7 +41,7 @@ const UsersPage: React.FC = () => {
   };
 
   const handleSaveEdit = (updatedUser: Usuario) => {
-    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    refetch();
     addLog(`Usuário ${updatedUser.nome} atualizado com sucesso`);
   };
 
@@ -100,7 +57,7 @@ const UsersPage: React.FC = () => {
 
       if (error) throw error;
       
-      setUsers(users.filter(u => u.id !== user.id));
+      refetch();
       addLog(`Usuário ${user.nome} excluído com sucesso`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -119,9 +76,7 @@ const UsersPage: React.FC = () => {
 
       if (error) throw error;
       
-      setUsers(users.map(u => 
-        u.id === user.id ? { ...u, ativo: !u.ativo } : u
-      ));
+      refetch();
       addLog(`Status do usuário ${user.nome} atualizado com sucesso`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -133,15 +88,8 @@ const UsersPage: React.FC = () => {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-        </div>
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h3 className="text-white mb-2">Logs de carregamento:</h3>
-          {debugLogs.map((log, index) => (
-            <div key={index} className="text-gray-400 text-sm">{log}</div>
-          ))}
-        </div>
+        <LoadingSpinner />
+        <DebugLogs logs={logs} />
       </div>
     );
   }
@@ -154,13 +102,9 @@ const UsersPage: React.FC = () => {
       </div>
 
       {error ? (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-300">
-          {error}
-        </div>
+        <ErrorAlert message={error} />
       ) : users.length === 0 ? (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-blue-300">
-          Nenhum usuário encontrado.
-        </div>
+        <EmptyState message="Nenhum usuário encontrado." />
       ) : (
         <UserList
           users={users}
@@ -171,12 +115,7 @@ const UsersPage: React.FC = () => {
         />
       )}
 
-      <div className="bg-gray-800 p-4 rounded-lg mt-4">
-        <h3 className="text-white mb-2">Logs de execução:</h3>
-        {debugLogs.map((log, index) => (
-          <div key={index} className="text-gray-400 text-sm">{log}</div>
-        ))}
-      </div>
+      <DebugLogs logs={logs} />
 
       {selectedUser && isViewModalOpen && (
         <UserViewModal
@@ -201,5 +140,14 @@ const UsersPage: React.FC = () => {
     </div>
   );
 };
+
+const DebugLogs: React.FC<{ logs: string[] }> = ({ logs }) => (
+  <div className="bg-gray-800 p-4 rounded-lg mt-4">
+    <h3 className="text-white mb-2">Logs de execução:</h3>
+    {logs.map((log, index) => (
+      <div key={index} className="text-gray-400 text-sm">{log}</div>
+    ))}
+  </div>
+);
 
 export default UsersPage;
