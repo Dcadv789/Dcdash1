@@ -28,7 +28,7 @@ const CategoryFilters: React.FC<CategoryFiltersProps> = ({
           <select
             value={selectedEmpresa}
             onChange={(e) => onEmpresaChange(e.target.value)}
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-8 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
           >
             <option value="">Todas as empresas</option>
             {empresas.map(empresa => (
@@ -37,24 +37,32 @@ const CategoryFilters: React.FC<CategoryFiltersProps> = ({
               </option>
             ))}
           </select>
+          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
 
         <div className="flex gap-2 ml-auto">
           <Button
             variant={selectedType === 'todos' ? 'primary' : 'secondary'}
             onClick={() => onTypeChange('todos')}
+            className="px-6"
           >
             Todos
           </Button>
           <Button
             variant={selectedType === 'receita' ? 'primary' : 'secondary'}
             onClick={() => onTypeChange('receita')}
+            className="px-6"
           >
             Receitas
           </Button>
           <Button
             variant={selectedType === 'despesa' ? 'primary' : 'secondary'}
             onClick={() => onTypeChange('despesa')}
+            className="px-6"
           >
             Despesas
           </Button>

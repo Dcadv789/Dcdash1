@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Power, Eye, Building2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, Eye, Building2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Categoria, Empresa, GrupoCategoria } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
@@ -75,10 +75,10 @@ const CategoriesPage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (selectedCategory && isCompaniesModalOpen) {
+    if (selectedCategory && (isCompaniesModalOpen || isViewModalOpen)) {
       fetchCategoryCompanies();
     }
-  }, [selectedCategory, isCompaniesModalOpen]);
+  }, [selectedCategory, isCompaniesModalOpen, isViewModalOpen]);
 
   const fetchCategoryCompanies = async () => {
     if (!selectedCategory) return;
@@ -105,13 +105,11 @@ const CategoriesPage: React.FC = () => {
 
     setLoadingCompanies(true);
     try {
-      // Primeiro remove todas as associações existentes
       await supabase
         .from('empresa_categorias')
         .delete()
         .eq('categoria_id', selectedCategory.id);
 
-      // Depois insere as novas associações
       if (selectedCompanies.length > 0) {
         const { error } = await supabase
           .from('empresa_categorias')
@@ -141,12 +139,10 @@ const CategoriesPage: React.FC = () => {
       'sem-grupo': []
     };
 
-    // Primeiro adiciona todos os grupos existentes
     grupos.forEach(grupo => {
       groups[grupo.id] = [];
     });
 
-    // Depois distribui as categorias
     categories.forEach(category => {
       if (category.grupo) {
         if (!groups[category.grupo.id]) {
@@ -359,28 +355,6 @@ const CategoriesPage: React.FC = () => {
         </div>
       )}
 
-      {isCategoryModalOpen && (
-        <CategoryModal
-          category={selectedCategory}
-          onClose={() => {
-            setSelectedCategory(undefined);
-            setIsCategoryModalOpen(false);
-          }}
-          onSave={refetch}
-        />
-      )}
-
-      {isGroupModalOpen && (
-        <GroupModal
-          group={selectedGroup}
-          onClose={() => {
-            setSelectedGroup(undefined);
-            setIsGroupModalOpen(false);
-          }}
-          onSave={refetch}
-        />
-      )}
-
       {isViewModalOpen && selectedCategory && (
         <Modal
           title="Detalhes da Categoria"
@@ -389,26 +363,51 @@ const CategoriesPage: React.FC = () => {
             setIsViewModalOpen(false);
           }}
         >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Código</label>
-              <p className="text-white font-mono">{selectedCategory.codigo}</p>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Código</label>
+                <p className="text-lg text-white font-mono">{selectedCategory.codigo}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Nome</label>
+                <p className="text-lg text-white">{selectedCategory.nome}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Tipo</label>
+                <p className="text-lg text-white capitalize">{selectedCategory.tipo}</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Nome</label>
-              <p className="text-white">{selectedCategory.nome}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Grupo</label>
+                <p className="text-lg text-white">{selectedCategory.grupo?.nome || 'Sem grupo'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Descrição</label>
+                <p className="text-lg text-white">{selectedCategory.descricao || '-'}</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Descrição</label>
-              <p className="text-white">{selectedCategory.descricao || '-'}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Tipo</label>
-              <p className="text-white capitalize">{selectedCategory.tipo}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Grupo</label>
-              <p className="text-white">{selectedCategory.grupo?.nome || 'Sem grupo'}</p>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-400 mb-2">Empresas Associadas</label>
+              {loadingCompanies ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                </div>
+              ) : selectedCompanies.length > 0 ? (
+                <div className="bg-gray-700 rounded-lg p-4 grid grid-cols-2 gap-4">
+                  {empresas
+                    .filter(empresa => selectedCompanies.includes(empresa.id))
+                    .map(empresa => (
+                      <div key={empresa.id} className="flex items-center gap-2 text-white">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span>{empresa.razao_social}</span>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-gray-400">Nenhuma empresa associada</p>
+              )}
             </div>
           </div>
         </Modal>
@@ -424,33 +423,55 @@ const CategoriesPage: React.FC = () => {
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                Empresas
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Selecione as empresas que podem usar esta categoria
               </label>
               {loadingCompanies ? (
                 <div className="flex justify-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                 </div>
               ) : (
-                <select
-                  multiple
-                  value={selectedCompanies}
-                  onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map(option => option.value);
-                    setSelectedCompanies(values);
-                  }}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[200px]"
-                >
-                  {empresas.map(empresa => (
-                    <option key={empresa.id} value={empresa.id}>
-                      {empresa.razao_social}
-                    </option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-400 mb-3">Empresas Disponíveis</h4>
+                    <div className="space-y-2">
+                      {empresas
+                        .filter(empresa => !selectedCompanies.includes(empresa.id))
+                        .map(empresa => (
+                          <label key={empresa.id} className="flex items-center gap-3 p-2 hover:bg-gray-600 rounded-lg cursor-pointer">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCompanies(prev => [...prev, empresa.id])}
+                              className="p-1 text-gray-400 hover:text-white hover:bg-gray-500 rounded"
+                            >
+                              <ArrowRight size={16} />
+                            </button>
+                            <span className="text-white">{empresa.razao_social}</span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-400 mb-3">Empresas Selecionadas</h4>
+                    <div className="space-y-2">
+                      {empresas
+                        .filter(empresa => selectedCompanies.includes(empresa.id))
+                        .map(empresa => (
+                          <label key={empresa.id} className="flex items-center gap-3 p-2 hover:bg-gray-600 rounded-lg cursor-pointer">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCompanies(prev => prev.filter(id => id !== empresa.id))}
+                              className="p-1 text-gray-400 hover:text-white hover:bg-gray-500 rounded"
+                            >
+                              <ArrowLeft size={16} />
+                            </button>
+                            <span className="text-white">{empresa.razao_social}</span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                </div>
               )}
-              <p className="mt-1 text-sm text-gray-400">
-                Pressione Ctrl (Cmd no Mac) para selecionar múltiplas empresas
-              </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -472,6 +493,28 @@ const CategoriesPage: React.FC = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {isCategoryModalOpen && (
+        <CategoryModal
+          category={selectedCategory}
+          onClose={() => {
+            setSelectedCategory(undefined);
+            setIsCategoryModalOpen(false);
+          }}
+          onSave={refetch}
+        />
+      )}
+
+      {isGroupModalOpen && (
+        <GroupModal
+          group={selectedGroup}
+          onClose={() => {
+            setSelectedGroup(undefined);
+            setIsGroupModalOpen(false);
+          }}
+          onSave={refetch}
+        />
       )}
     </div>
   );
