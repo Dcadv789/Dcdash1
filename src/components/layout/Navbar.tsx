@@ -38,8 +38,10 @@ const Navbar: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    // Fechar dropdowns apenas quando navegar para páginas principais
-    if (!location.pathname.includes('/categories') && !location.pathname.includes('/indicators')) {
+    // Fechar dropdowns quando navegar para páginas que não são do submenu
+    if (!location.pathname.includes('/categories') && 
+        !location.pathname.includes('/indicators') && 
+        !location.pathname.includes('/dreconfig')) {
       setIsSettingsOpen(false);
       setIsDatabaseOpen(false);
     }
@@ -76,6 +78,17 @@ const Navbar: React.FC = () => {
     navigate('/login');
   };
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    // Fechar dropdowns apenas se não for uma página do submenu Base de Dados
+    if (!path.includes('/categories') && 
+        !path.includes('/indicators') && 
+        !path.includes('/dreconfig')) {
+      setIsSettingsOpen(false);
+      setIsDatabaseOpen(false);
+    }
+  };
+
   return (
     <div className="bg-black rounded-2xl p-4 flex items-center justify-between z-10">
       <h1 className="text-white text-xl font-semibold">{getGreeting()}</h1>
@@ -99,14 +112,14 @@ const Navbar: React.FC = () => {
           {isSettingsOpen && (
             <div className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-lg py-1 min-w-[200px] border border-gray-700">
               <button
-                onClick={() => navigate('/users')}
+                onClick={() => handleNavigation('/users')}
                 className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
               >
                 <Users size={16} />
                 Usuários
               </button>
               <button
-                onClick={() => navigate('/companies')}
+                onClick={() => handleNavigation('/companies')}
                 className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
               >
                 <Building2 size={16} />
@@ -127,16 +140,22 @@ const Navbar: React.FC = () => {
                 {isDatabaseOpen && (
                   <div className="absolute left-full top-0 ml-0.5 bg-gray-800 rounded-xl shadow-lg py-1 min-w-[200px] border border-gray-700">
                     <button
-                      onClick={() => navigate('/categories')}
+                      onClick={() => handleNavigation('/categories')}
                       className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 rounded-lg"
                     >
                       Categorias
                     </button>
                     <button
-                      onClick={() => navigate('/indicators')}
+                      onClick={() => handleNavigation('/indicators')}
                       className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 rounded-lg"
                     >
                       Indicadores
+                    </button>
+                    <button
+                      onClick={() => handleNavigation('/dreconfig')}
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 rounded-lg"
+                    >
+                      DRE
                     </button>
                   </div>
                 )}
