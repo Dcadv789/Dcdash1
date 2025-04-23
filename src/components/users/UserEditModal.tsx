@@ -45,7 +45,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
     setError(null);
 
     try {
-      const { data, error } = await supabase
+      // First update the user data
+      const { error: updateError } = await supabase
         .from('usuarios')
         .update({
           nome: formData.nome,
@@ -56,15 +57,25 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
           avatar_url: formData.avatar_url || null,
           empresa_id: formData.empresa_id || null,
         })
-        .eq('id', user.id)
-        .select('*, empresa:empresas(razao_social)')
-        .single();
+        .eq('id', user.id);
 
-      if (error) throw error;
-      if (data) {
-        onSave(data as Usuario);
-        onClose();
+      if (updateError) throw updateError;
+
+      // Then fetch the updated user data in a separate query
+      const { data: updatedUser, error: fetchError } = await supabase
+        .from('usuarios')
+        .select('*, empresa:empresas(razao_social)')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      
+      if (!updatedUser) {
+        throw new Error('Usuário não encontrado após atualização');
       }
+
+      onSave(updatedUser as Usuario);
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao atualizar usuário');
     } finally {

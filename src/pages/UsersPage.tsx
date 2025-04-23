@@ -45,7 +45,10 @@ const UsersPage: React.FC = () => {
       addLog('Fazendo consulta completa com dados da empresa...');
       const { data, error } = await supabase
         .from('usuarios')
-        .select('*, empresa:empresas(razao_social)');
+        .select(`
+          *,
+          empresa:empresas(razao_social)
+        `);
 
       if (error) {
         addLog(`Erro na consulta completa: ${error.message}`);
