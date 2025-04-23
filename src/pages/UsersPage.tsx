@@ -145,8 +145,9 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold text-white">Usuários ({users.length})</h2>
+      <div>
+        <h2 className="text-2xl font-semibold text-white">Gerenciamento de Usuários</h2>
+        <p className="text-gray-400 mt-2">Gerencie usuários e suas permissões de acesso ao sistema</p>
       </div>
 
       {error ? (

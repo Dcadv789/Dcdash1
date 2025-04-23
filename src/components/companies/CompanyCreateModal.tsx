@@ -55,7 +55,9 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
           .insert(
             socios.map(socio => ({
               ...socio,
-              empresa_id: companyData.id
+              empresa_id: companyData.id,
+              cpf: socio.cpf?.replace(/\D/g, '') || null,
+              telefone: socio.telefone?.replace(/\D/g, '') || null
             }))
           );
 
@@ -232,7 +234,7 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
             <div className="space-y-4">
               {socios.map((socio, index) => (
                 <div key={index} className="bg-gray-700 p-4 rounded-lg">
-                  <div className="grid grid-cols-6 gap-4 items-center">
+                  <div className="grid grid-cols-6 gap-4">
                     <div className="col-span-2">
                       <input
                         type="text"
@@ -266,7 +268,27 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
                         disabled={editingSocio !== index}
                       />
                     </div>
-                    <div className="flex gap-2 justify-end col-span-2">
+                    <div>
+                      <input
+                        type="email"
+                        value={socio.email || ''}
+                        onChange={(e) => handleUpdateSocio(index, 'email', e.target.value)}
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                        placeholder="Email"
+                        disabled={editingSocio !== index}
+                      />
+                    </div>
+                    <div>
+                      <InputMask
+                        mask="(99) 99999-9999"
+                        value={socio.telefone || ''}
+                        onChange={(e) => handleUpdateSocio(index, 'telefone', e.target.value)}
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
+                        placeholder="Telefone"
+                        disabled={editingSocio !== index}
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
                       {editingSocio === index ? (
                         <button
                           type="button"

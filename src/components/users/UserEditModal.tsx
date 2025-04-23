@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { Usuario } from '../../types/database';
+import InputMask from 'react-input-mask';
+import { Usuario, Empresa } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 
 interface UserEditModalProps {
@@ -16,9 +17,27 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
     telefone: user.telefone || '',
     cargo: user.cargo || '',
     role: user.role,
+    avatar_url: user.avatar_url || '',
+    empresa_id: user.empresa_id || '',
   });
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchEmpresas();
+  }, []);
+
+  const fetchEmpresas = async () => {
+    const { data, error } = await supabase
+      .from('empresas')
+      .select('*')
+      .eq('ativa', true);
+
+    if (!error && data) {
+      setEmpresas(data);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +53,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
           telefone: formData.telefone || null,
           cargo: formData.cargo || null,
           role: formData.role,
+          avatar_url: formData.avatar_url || null,
+          empresa_id: formData.empresa_id || null,
         })
         .eq('id', user.id)
         .select('*, empresa:empresas(razao_social)')
@@ -102,8 +123,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
               <label className="block text-sm font-medium text-gray-400 mb-1">
                 Telefone
               </label>
-              <input
-                type="tel"
+              <InputMask
+                mask="(99) 99999-9999"
                 value={formData.telefone}
                 onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -120,6 +141,37 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
                 onChange={(e) => setFormData(prev => ({ ...prev, cargo: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                URL do Avatar
+              </label>
+              <input
+                type="url"
+                value={formData.avatar_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, avatar_url: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="https://exemplo.com/avatar.png"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Empresa
+              </label>
+              <select
+                value={formData.empresa_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, empresa_id: e.target.value }))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecione uma empresa</option>
+                {empresas.map(empresa => (
+                  <option key={empresa.id} value={empresa.id}>
+                    {empresa.razao_social}
+                  </option>
+                ))}
+              </select>
             </div>
             
             <div>
@@ -160,4 +212,4 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
   );
 };
 
-export default UserEditModal
+export default UserEditModal;
