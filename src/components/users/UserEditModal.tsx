@@ -29,13 +29,17 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
   }, []);
 
   const fetchEmpresas = async () => {
-    const { data, error } = await supabase
-      .from('empresas')
-      .select('*')
-      .eq('ativa', true);
+    try {
+      const { data, error } = await supabase
+        .from('empresas')
+        .select('id, razao_social')
+        .eq('ativa', true)
+        .order('razao_social');
 
-    if (!error && data) {
-      setEmpresas(data);
+      if (error) throw error;
+      setEmpresas(data || []);
+    } catch (err) {
+      console.error('Erro ao buscar empresas:', err);
     }
   };
 
@@ -45,8 +49,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
     setError(null);
 
     try {
-      // First update the user data
-      const { error: updateError } = await supabase
+      // Atualizar usuário
+      const { data: updatedUser, error: updateError } = await supabase
         .from('usuarios')
         .update({
           nome: formData.nome,
@@ -55,28 +59,25 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ user, onClose, onSave }) 
           cargo: formData.cargo || null,
           role: formData.role,
           avatar_url: formData.avatar_url || null,
-          empresa_id: formData.empresa_id || null,
+          empresa_id: formData.empresa_id || null
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select(`
+          *,
+          empresa:empresas (
+            id,
+            razao_social
+          )
+        `)
+        .single();
 
       if (updateError) throw updateError;
-
-      // Then fetch the updated user data in a separate query
-      const { data: updatedUser, error: fetchError } = await supabase
-        .from('usuarios')
-        .select('*, empresa:empresas(razao_social)')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-      
-      if (!updatedUser) {
-        throw new Error('Usuário não encontrado após atualização');
-      }
+      if (!updatedUser) throw new Error('Usuário não encontrado após atualização');
 
       onSave(updatedUser as Usuario);
       onClose();
     } catch (err) {
+      console.error('Erro ao atualizar usuário:', err);
       setError(err instanceof Error ? err.message : 'Erro ao atualizar usuário');
     } finally {
       setLoading(false);
