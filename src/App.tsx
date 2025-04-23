@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage';
 import UsersPage from './pages/UsersPage';
 import CompaniesPage from './pages/CompaniesPage';
 import ProfilePage from './pages/ProfilePage';
+import CategoriesPage from './pages/CategoriesPage';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="users" element={<UsersPage />} />
             <Route path="companies" element={<CompaniesPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="categories" element={<CategoriesPage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -34,4 +36,4 @@ function App() {
   );
 }
 
-export default App;
+export default App

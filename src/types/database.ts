@@ -38,3 +38,34 @@ export interface Socio {
   telefone: string | null;
   created_at: string;
 }
+
+export interface Categoria {
+  id: string;
+  codigo: string;
+  nome: string;
+  descricao: string | null;
+  grupo_id: string | null;
+  tipo: 'receita' | 'despesa';
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+  grupo?: GrupoCategoria;
+}
+
+export interface GrupoCategoria {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface EmpresaCategoria {
+  id: string;
+  empresa_id: string;
+  categoria_id: string;
+  criado_em: string;
+  categoria?: Categoria;
+  empresa?: Empresa;
+}
