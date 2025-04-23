@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Pencil, Trash2, Power } from 'lucide-react';
-import { Categoria, Empresa } from '../types/database';
+import { Categoria, Empresa, GrupoCategoria } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
@@ -8,12 +8,17 @@ import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import CategoryModal from '../components/categories/CategoryModal';
+import CategoryFilters from '../components/categories/CategoryFilters';
+import CategoryGroupHeader from '../components/categories/CategoryGroupHeader';
+import GroupModal from '../components/categories/GroupModal';
 
 const CategoriesPage: React.FC = () => {
-  const [selectedType, setSelectedType] = useState<'receita' | 'despesa'>('receita');
+  const [selectedType, setSelectedType] = useState<'todos' | 'receita' | 'despesa'>('todos');
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<Categoria | undefined>();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<GrupoCategoria | undefined>();
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
   const { data: empresas } = useSupabaseQuery<Empresa>({
     query: () => supabase
@@ -31,11 +36,15 @@ const CategoriesPage: React.FC = () => {
           *,
           grupo:grupo_categorias (
             id,
-            nome
+            nome,
+            descricao
           )
         `)
-        .eq('tipo', selectedType)
         .order('codigo');
+
+      if (selectedType !== 'todos') {
+        query = query.eq('tipo', selectedType);
+      }
 
       if (selectedEmpresa) {
         query = query.in(
@@ -103,6 +112,23 @@ const CategoriesPage: React.FC = () => {
     }
   };
 
+  const handleDeleteGroup = async (group: GrupoCategoria) => {
+    if (!window.confirm('Tem certeza que deseja excluir este grupo?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('grupo_categorias')
+        .delete()
+        .eq('id', group.id);
+
+      if (error) throw error;
+      refetch();
+    } catch (err) {
+      console.error('Erro ao excluir grupo:', err);
+      alert('Não foi possível excluir o grupo');
+    }
+  };
+
   const renderCategoryTable = (categories: Categoria[]) => (
     <table className="w-full">
       <thead>
@@ -134,7 +160,7 @@ const CategoriesPage: React.FC = () => {
                 <button
                   onClick={() => {
                     setSelectedCategory(categoria);
-                    setIsModalOpen(true);
+                    setIsCategoryModalOpen(true);
                   }}
                   className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
                   title="Editar"
@@ -173,89 +199,86 @@ const CategoriesPage: React.FC = () => {
           <h2 className="text-2xl font-semibold text-white">Categorias</h2>
           <p className="text-gray-400 mt-1">Gerencie as categorias de receitas e despesas</p>
         </div>
-        <Button
-          onClick={() => {
-            setSelectedCategory(undefined);
-            setIsModalOpen(true);
-          }}
-          icon={Plus}
-        >
-          Nova Categoria
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              setSelectedCategory(undefined);
+              setIsCategoryModalOpen(true);
+            }}
+            icon={Plus}
+          >
+            Nova Categoria
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSelectedGroup(undefined);
+              setIsGroupModalOpen(true);
+            }}
+            icon={Plus}
+          >
+            Novo Grupo
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-gray-800 rounded-lg p-4">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Empresa
-            </label>
-            <select
-              value={selectedEmpresa}
-              onChange={(e) => setSelectedEmpresa(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todas as empresas</option>
-              {empresas.map(empresa => (
-                <option key={empresa.id} value={empresa.id}>
-                  {empresa.razao_social}
-                </option>
-              ))}
-            </select>
-          </div>
+      <CategoryFilters
+        selectedType={selectedType}
+        selectedEmpresa={selectedEmpresa}
+        empresas={empresas}
+        onTypeChange={setSelectedType}
+        onEmpresaChange={setSelectedEmpresa}
+      />
 
-          <div className="flex gap-2 self-end">
-            <button
-              onClick={() => setSelectedType('receita')}
-              className={`px-4 py-2 rounded-lg ${
-                selectedType === 'receita'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              Receitas
-            </button>
-            <button
-              onClick={() => setSelectedType('despesa')}
-              className={`px-4 py-2 rounded-lg ${
-                selectedType === 'despesa'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              Despesas
-            </button>
-          </div>
+      {categories.length === 0 ? (
+        <div className="bg-black rounded-xl p-6">
+          <EmptyState message={`Nenhuma categoria ${selectedType !== 'todos' ? `de ${selectedType}` : ''} encontrada.`} />
         </div>
-
-        {categories.length === 0 ? (
-          <EmptyState message={`Nenhuma categoria de ${selectedType} encontrada.`} />
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(categoriesByGroup).map(([groupId, cats]) => {
-              if (cats.length === 0) return null;
-              
-              const groupName = cats[0].grupo?.nome || 'Sem Grupo';
-              
-              return (
-                <div key={groupId} className="space-y-2">
-                  <h3 className="text-lg font-medium text-white">{groupName}</h3>
+      ) : (
+        <div className="bg-black rounded-xl p-6 space-y-8">
+          {Object.entries(categoriesByGroup).map(([groupId, cats]) => {
+            if (cats.length === 0) return null;
+            
+            const group = cats[0].grupo;
+            
+            return (
+              <div key={groupId} className="space-y-4">
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <CategoryGroupHeader
+                    group={group}
+                    onEdit={(group) => {
+                      setSelectedGroup(group);
+                      setIsGroupModalOpen(true);
+                    }}
+                    onDelete={group ? () => handleDeleteGroup(group) : undefined}
+                  />
                   <div className="overflow-x-auto">
                     {renderCategoryTable(cats)}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      {isModalOpen && (
+      {isCategoryModalOpen && (
         <CategoryModal
           category={selectedCategory}
           onClose={() => {
             setSelectedCategory(undefined);
-            setIsModalOpen(false);
+            setIsCategoryModalOpen(false);
+          }}
+          onSave={refetch}
+        />
+      )}
+
+      {isGroupModalOpen && (
+        <GroupModal
+          group={selectedGroup}
+          onClose={() => {
+            setSelectedGroup(undefined);
+            setIsGroupModalOpen(false);
           }}
           onSave={refetch}
         />

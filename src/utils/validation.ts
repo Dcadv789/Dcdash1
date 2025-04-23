@@ -40,7 +40,7 @@ export const isValidCNPJ = (cnpj: string): boolean => {
   
   // Validação dos dígitos verificadores
   const length = cleanCNPJ.length - 2;
-  const numbers = cleanCNPJ.substring(0, length);
+  let numbers = cleanCNPJ.substring(0, length);
   const digits = cleanCNPJ.substring(length);
   let sum = 0;
   let pos = length - 7;
