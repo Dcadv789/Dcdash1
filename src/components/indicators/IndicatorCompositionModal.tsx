@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
-import { Indicador, Categoria, IndicadorComposicao } from '../../types/database';
+import { Indicador, Categoria } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
@@ -128,7 +128,7 @@ const IndicatorCompositionModal: React.FC<IndicatorCompositionModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-700 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-400 mb-3">Categorias Disponíveis</h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                 {categorias
                   .filter(categoria => !selectedCategorias.includes(categoria.id))
                   .map(categoria => (
@@ -150,7 +150,7 @@ const IndicatorCompositionModal: React.FC<IndicatorCompositionModalProps> = ({
             </div>
             <div className="bg-gray-700 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-400 mb-3">Categorias Selecionadas</h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                 {categorias
                   .filter(categoria => selectedCategorias.includes(categoria.id))
                   .map(categoria => (
@@ -179,7 +179,7 @@ const IndicatorCompositionModal: React.FC<IndicatorCompositionModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-700 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-400 mb-3">Indicadores Disponíveis</h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                 {indicadores
                   .filter(ind => !selectedIndicadores.includes(ind.id))
                   .map(ind => (
@@ -201,7 +201,7 @@ const IndicatorCompositionModal: React.FC<IndicatorCompositionModalProps> = ({
             </div>
             <div className="bg-gray-700 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-400 mb-3">Indicadores Selecionados</h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                 {indicadores
                   .filter(ind => selectedIndicadores.includes(ind.id))
                   .map(ind => (

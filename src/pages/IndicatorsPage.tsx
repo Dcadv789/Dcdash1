@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Power, Eye, Building2, Calculator } from 'lucide-react';
-import { Indicador } from '../types/database';
+import { Plus } from 'lucide-react';
+import { Indicador, Empresa } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
@@ -11,8 +11,12 @@ import { Modal } from '../components/shared/Modal';
 import IndicatorModal from '../components/indicators/IndicatorModal';
 import IndicatorCompaniesModal from '../components/indicators/IndicatorCompaniesModal';
 import IndicatorCompositionModal from '../components/indicators/IndicatorCompositionModal';
+import IndicatorFilters from '../components/indicators/IndicatorFilters';
+import IndicatorList from '../components/indicators/IndicatorList';
 
 const IndicatorsPage: React.FC = () => {
+  const [selectedType, setSelectedType] = useState<'todos' | 'único' | 'composto'>('todos');
+  const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedIndicator, setSelectedIndicator] = useState<Indicador | undefined>();
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -20,11 +24,40 @@ const IndicatorsPage: React.FC = () => {
   const [isCompaniesModalOpen, setIsCompaniesModalOpen] = useState(false);
   const [isCompositionModalOpen, setIsCompositionModalOpen] = useState(false);
 
-  const { data: indicators, loading, error, refetch } = useSupabaseQuery<Indicador>({
+  const { data: empresas } = useSupabaseQuery<Empresa>({
     query: () => supabase
-      .from('indicadores')
-      .select('*')
-      .order('codigo'),
+      .from('empresas')
+      .select('id, razao_social')
+      .eq('ativa', true)
+      .order('razao_social'),
+  });
+
+  const { data: indicators, loading, error, refetch } = useSupabaseQuery<Indicador>({
+    query: () => {
+      let query = supabase
+        .from('indicadores')
+        .select(`
+          *,
+          empresa:indicadores_empresas(
+            empresa:empresas(
+              id,
+              razao_social
+            )
+          )
+        `)
+        .order('codigo');
+
+      if (selectedType !== 'todos') {
+        query = query.eq('tipo', selectedType);
+      }
+
+      if (selectedEmpresa) {
+        query = query.eq('indicadores_empresas.empresa_id', selectedEmpresa);
+      }
+
+      return query;
+    },
+    dependencies: [selectedType, selectedEmpresa],
   });
 
   const handleToggleActive = async (indicator: Indicador) => {
@@ -62,6 +95,12 @@ const IndicatorsPage: React.FC = () => {
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorAlert message={error} />;
 
+  // Processar os dados dos indicadores para extrair a empresa
+  const processedIndicators = indicators.map(indicator => ({
+    ...indicator,
+    empresa: indicator.empresa?.[0]?.empresa || null
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -77,106 +116,38 @@ const IndicatorsPage: React.FC = () => {
         </Button>
       </div>
 
-      {indicators.length === 0 ? (
+      <IndicatorFilters
+        selectedType={selectedType}
+        selectedEmpresa={selectedEmpresa}
+        empresas={empresas}
+        onTypeChange={setSelectedType}
+        onEmpresaChange={setSelectedEmpresa}
+      />
+
+      {processedIndicators.length === 0 ? (
         <EmptyState message="Nenhum indicador encontrado." />
       ) : (
-        <div className="bg-gray-800 rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left p-4 text-gray-400">Código</th>
-                <th className="text-left p-4 text-gray-400">Nome</th>
-                <th className="text-left p-4 text-gray-400">Tipo</th>
-                <th className="text-left p-4 text-gray-400">Tipo de Dado</th>
-                <th className="text-left p-4 text-gray-400">Status</th>
-                <th className="text-right p-4 text-gray-400">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {indicators.map((indicator) => (
-                <tr key={indicator.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                  <td className="p-4 text-white font-mono">{indicator.codigo}</td>
-                  <td className="p-4 text-white">{indicator.nome}</td>
-                  <td className="p-4">
-                    <span className="capitalize text-white">{indicator.tipo}</span>
-                  </td>
-                  <td className="p-4">
-                    <span className="capitalize text-white">{indicator.tipo_dado}</span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      indicator.ativo 
-                        ? 'bg-green-500/20 text-green-300'
-                        : 'bg-red-500/20 text-red-300'
-                    }`}>
-                      {indicator.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedIndicator(indicator);
-                          setIsViewModalOpen(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title="Visualizar"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedIndicator(indicator);
-                          setIsCompaniesModalOpen(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title="Gerenciar Empresas"
-                      >
-                        <Building2 size={18} />
-                      </button>
-                      {indicator.tipo === 'composto' && (
-                        <button
-                          onClick={() => {
-                            setSelectedIndicator(indicator);
-                            setIsCompositionModalOpen(true);
-                          }}
-                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                          title="Gerenciar Composição"
-                        >
-                          <Calculator size={18} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          setSelectedIndicator(indicator);
-                          setIsEditModalOpen(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title="Editar"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleToggleActive(indicator)}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title={indicator.ativo ? 'Desativar' : 'Ativar'}
-                      >
-                        <Power size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(indicator)}
-                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg"
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <IndicatorList
+          indicators={processedIndicators}
+          onView={(indicator) => {
+            setSelectedIndicator(indicator);
+            setIsViewModalOpen(true);
+          }}
+          onEdit={(indicator) => {
+            setSelectedIndicator(indicator);
+            setIsEditModalOpen(true);
+          }}
+          onDelete={handleDelete}
+          onToggleActive={handleToggleActive}
+          onManageCompanies={(indicator) => {
+            setSelectedIndicator(indicator);
+            setIsCompaniesModalOpen(true);
+          }}
+          onManageComposition={(indicator) => {
+            setSelectedIndicator(indicator);
+            setIsCompositionModalOpen(true);
+          }}
+        />
       )}
 
       {/* Modal de Visualização */}
@@ -205,6 +176,14 @@ const IndicatorsPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Tipo de Dado</label>
                 <p className="text-lg text-white capitalize">{selectedIndicator.tipo_dado}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Status</label>
+                <p className="text-lg text-white">{selectedIndicator.ativo ? 'Ativo' : 'Inativo'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Empresa</label>
+                <p className="text-lg text-white">{selectedIndicator.empresa?.razao_social || '-'}</p>
               </div>
             </div>
             <div>

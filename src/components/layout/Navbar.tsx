@@ -37,6 +37,14 @@ const Navbar: React.FC = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    // Fechar dropdowns apenas quando navegar para páginas principais
+    if (!location.pathname.includes('/categories') && !location.pathname.includes('/indicators')) {
+      setIsSettingsOpen(false);
+      setIsDatabaseOpen(false);
+    }
+  }, [location]);
+
   const fetchUserProfile = async () => {
     try {
       const { data } = await supabase
@@ -79,7 +87,7 @@ const Navbar: React.FC = () => {
         <div className="relative" ref={settingsRef}>
           <button
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-gray-800 min-w-[160px] justify-between"
+            className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-gray-800 min-w-[200px] justify-between"
           >
             <div className="flex items-center gap-2">
               <Settings size={20} />
@@ -89,7 +97,7 @@ const Navbar: React.FC = () => {
           </button>
 
           {isSettingsOpen && (
-            <div className="absolute right-0 mt-2 bg-gray-800 rounded-lg shadow-lg py-1 min-w-[160px]">
+            <div className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-lg py-1 min-w-[200px] border border-gray-700">
               <button
                 onClick={() => navigate('/users')}
                 className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
@@ -117,16 +125,16 @@ const Navbar: React.FC = () => {
                 </button>
                 
                 {isDatabaseOpen && (
-                  <div className="absolute left-full top-0 ml-0.5 bg-gray-800 rounded-lg shadow-lg py-1 min-w-[160px]">
+                  <div className="absolute left-full top-0 ml-0.5 bg-gray-800 rounded-xl shadow-lg py-1 min-w-[200px] border border-gray-700">
                     <button
                       onClick={() => navigate('/categories')}
-                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 rounded-lg"
                     >
                       Categorias
                     </button>
                     <button
                       onClick={() => navigate('/indicators')}
-                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 rounded-lg"
                     >
                       Indicadores
                     </button>
@@ -163,20 +171,20 @@ const Navbar: React.FC = () => {
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-xl shadow-lg py-1 z-50 border border-gray-700">
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
                   navigate('/profile');
                 }}
-                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 rounded-lg"
               >
                 <User size={16} />
                 Meu Perfil
               </button>
               <button
                 onClick={handleLogout}
-                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 rounded-lg"
               >
                 <LogOut size={16} />
                 Sair

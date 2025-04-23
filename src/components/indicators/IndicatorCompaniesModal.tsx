@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
-import { Indicador, Empresa, IndicadorEmpresa } from '../../types/database';
+import { Indicador, Empresa } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
@@ -104,7 +104,7 @@ const IndicatorCompaniesModal: React.FC<IndicatorCompaniesModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-700 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-400 mb-3">Empresas Disponíveis</h4>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                   {empresas
                     .filter(empresa => !selectedCompanies.includes(empresa.id))
                     .map(empresa => (
@@ -123,7 +123,7 @@ const IndicatorCompaniesModal: React.FC<IndicatorCompaniesModalProps> = ({
               </div>
               <div className="bg-gray-700 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-400 mb-3">Empresas Selecionadas</h4>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                   {empresas
                     .filter(empresa => selectedCompanies.includes(empresa.id))
                     .map(empresa => (
