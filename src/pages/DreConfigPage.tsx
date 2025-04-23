@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Power, Eye, Building2, Search, Calculator } from 'lucide-react';
-import { DreConfiguracao, Empresa } from '../types/database';
+import React, { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, Power, Calculator, ChevronRight, ChevronDown } from 'lucide-react';
+import { DreConfiguracao } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
@@ -10,14 +10,38 @@ import { Button } from '../components/shared/Button';
 import { Modal } from '../components/shared/Modal';
 import DreComponentsModal from '../components/dre/DreComponentsModal';
 
+interface ContaComponente {
+  id: string;
+  categoria?: {
+    id: string;
+    nome: string;
+    codigo: string;
+  } | null;
+  indicador?: {
+    id: string;
+    nome: string;
+    codigo: string;
+  } | null;
+  conta_componente?: {
+    id: string;
+    nome: string;
+  } | null;
+  simbolo: '+' | '-' | '=';
+}
+
+interface ContaHierarquica extends DreConfiguracao {
+  contas_filhas?: ContaHierarquica[];
+  nivel: number;
+}
+
 const DreConfigPage: React.FC = () => {
   const [selectedConta, setSelectedConta] = useState<DreConfiguracao | undefined>();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEmpresasModalOpen, setIsEmpresasModalOpen] = useState(false);
   const [isComponentsModalOpen, setIsComponentsModalOpen] = useState(false);
-  const [selectedEmpresas, setSelectedEmpresas] = useState<string[]>([]);
-  const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [componentes, setComponentes] = useState<ContaComponente[]>([]);
+  const [loadingComponentes, setLoadingComponentes] = useState(false);
+  const [expandedContas, setExpandedContas] = useState<Set<string>>(new Set());
 
   const { data: contas, loading: loadingContas, error, refetch } = useSupabaseQuery<DreConfiguracao>({
     query: () => supabase
@@ -32,13 +56,174 @@ const DreConfigPage: React.FC = () => {
       .order('ordem'),
   });
 
-  const { data: empresas } = useSupabaseQuery<Empresa>({
-    query: () => supabase
-      .from('empresas')
-      .select('id, razao_social')
-      .eq('ativa', true)
-      .order('razao_social'),
-  });
+  const organizarContasHierarquicamente = (contas: DreConfiguracao[]): ContaHierarquica[] => {
+    const contasMap = new Map<string, ContaHierarquica>();
+    const contasRaiz: ContaHierarquica[] = [];
+
+    // Primeiro, criar todas as contas com nível inicial 0
+    contas.forEach(conta => {
+      contasMap.set(conta.id, { ...conta, contas_filhas: [], nivel: 0 });
+    });
+
+    // Depois, organizar a hierarquia
+    contas.forEach(conta => {
+      const contaAtual = contasMap.get(conta.id)!;
+      
+      if (conta.conta_pai_id) {
+        const contaPai = contasMap.get(conta.conta_pai_id);
+        if (contaPai) {
+          contaPai.contas_filhas?.push(contaAtual);
+          contaAtual.nivel = contaPai.nivel + 1;
+        }
+      } else {
+        contasRaiz.push(contaAtual);
+      }
+    });
+
+    return contasRaiz.sort((a, b) => a.ordem - b.ordem);
+  };
+
+  const contasHierarquicas = organizarContasHierarquicamente(contas);
+
+  const toggleExpanded = (contaId: string) => {
+    setExpandedContas(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contaId)) {
+        newSet.delete(contaId);
+      } else {
+        newSet.add(contaId);
+      }
+      return newSet;
+    });
+  };
+
+  const renderConta = (conta: ContaHierarquica) => {
+    const hasChildren = conta.contas_filhas && conta.contas_filhas.length > 0;
+    const isExpanded = expandedContas.has(conta.id);
+
+    return (
+      <div key={conta.id} className="space-y-2">
+        <div
+          className={`bg-gray-700 rounded-lg transition-colors ${
+            selectedConta?.id === conta.id ? 'ring-2 ring-blue-500' : ''
+          } hover:bg-gray-600`}
+        >
+          <div className="flex items-center p-4">
+            <div
+              style={{ paddingLeft: `${conta.nivel * 1.5}rem` }}
+              className="flex-1 flex items-center gap-3 cursor-pointer"
+              onClick={() => setSelectedConta(conta)}
+            >
+              {hasChildren && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpanded(conta.id);
+                  }}
+                  className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded"
+                >
+                  {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                </button>
+              )}
+              <span className="text-gray-400 font-mono">{conta.ordem}.</span>
+              <span className="text-white font-medium">{conta.nome}</span>
+              <span className="text-gray-400 font-mono">{conta.simbolo}</span>
+              {!conta.visivel && (
+                <span className="text-xs text-gray-400">(Oculto no relatório)</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setSelectedConta(conta);
+                  setIsComponentsModalOpen(true);
+                }}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                title="Gerenciar Componentes"
+              >
+                <Calculator size={18} />
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedConta(conta);
+                  setIsModalOpen(true);
+                }}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                title="Editar"
+              >
+                <Pencil size={18} />
+              </button>
+              <button
+                onClick={() => handleToggleActive(conta)}
+                className={`p-2 rounded-lg transition-colors ${
+                  conta.ativo
+                    ? 'text-green-500 hover:text-green-400'
+                    : 'text-red-500 hover:text-red-400'
+                } hover:bg-gray-700`}
+                title={conta.ativo ? 'Desativar' : 'Ativar'}
+              >
+                <Power size={18} />
+              </button>
+              <button
+                onClick={() => handleDelete(conta)}
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg"
+                title="Excluir"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+        {hasChildren && isExpanded && (
+          <div className="space-y-2">
+            {conta.contas_filhas!.sort((a, b) => a.ordem - b.ordem).map(contaFilha => renderConta(contaFilha))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    if (selectedConta) {
+      fetchComponentes();
+    }
+  }, [selectedConta]);
+
+  const fetchComponentes = async () => {
+    if (!selectedConta) return;
+
+    setLoadingComponentes(true);
+    try {
+      const { data, error } = await supabase
+        .from('dre_conta_componentes')
+        .select(`
+          id,
+          simbolo,
+          categoria:categorias (
+            id,
+            nome,
+            codigo
+          ),
+          indicador:indicadores (
+            id,
+            nome,
+            codigo
+          ),
+          conta_componente:dre_configuracao!dre_conta_componentes_conta_componente_id_fkey (
+            id,
+            nome
+          )
+        `)
+        .eq('conta_id', selectedConta.id);
+
+      if (error) throw error;
+      setComponentes(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar componentes:', err);
+    } finally {
+      setLoadingComponentes(false);
+    }
+  };
 
   const handleSave = async (formData: Partial<DreConfiguracao>) => {
     try {
@@ -80,6 +265,9 @@ const DreConfigPage: React.FC = () => {
 
       if (error) throw error;
       refetch();
+      if (selectedConta?.id === conta.id) {
+        setSelectedConta(undefined);
+      }
     } catch (err) {
       console.error('Erro ao excluir conta:', err);
       alert('Não foi possível excluir a conta');
@@ -105,137 +293,120 @@ const DreConfigPage: React.FC = () => {
   if (error) return <ErrorAlert message={error} />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-semibold text-white">Configuração do DRE</h2>
-          <p className="text-gray-400 mt-1">Configure as contas e estrutura do DRE</p>
-        </div>
-        <Button
-          onClick={() => {
-            setSelectedConta(undefined);
-            setIsModalOpen(true);
-          }}
-          icon={Plus}
-        >
-          Nova Conta
-        </Button>
-      </div>
-
-      <div className="bg-gray-800 rounded-xl p-4">
-        <div className="flex items-center gap-4">
-          <div className="relative w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-500" />
-            </div>
-            <select
-              value={selectedEmpresa}
-              onChange={(e) => setSelectedEmpresa(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-8 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value="">Todas as empresas</option>
-              {empresas.map(empresa => (
-                <option key={empresa.id} value={empresa.id}>
-                  {empresa.razao_social}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+    <div className="flex gap-6 h-[calc(100vh-12rem)]">
+      {/* Coluna Principal (70%) */}
+      <div className="flex-[7] bg-gray-800 rounded-xl p-6 overflow-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-white">Configuração do DRE</h2>
+            <p className="text-gray-400 mt-1">Configure as contas e estrutura do DRE</p>
           </div>
+          <Button
+            onClick={() => {
+              setSelectedConta(undefined);
+              setIsModalOpen(true);
+            }}
+            icon={Plus}
+          >
+            Nova Conta
+          </Button>
         </div>
+
+        {contas.length === 0 ? (
+          <EmptyState message="Nenhuma conta configurada." />
+        ) : (
+          <div className="space-y-2">
+            {contasHierarquicas.map(conta => renderConta(conta))}
+          </div>
+        )}
       </div>
 
-      {contas.length === 0 ? (
-        <EmptyState message="Nenhuma conta configurada." />
-      ) : (
-        <div className="bg-gray-800 rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left p-4 text-gray-400">Nome</th>
-                <th className="text-left p-4 text-gray-400">Ordem</th>
-                <th className="text-left p-4 text-gray-400">Símbolo</th>
-                <th className="text-left p-4 text-gray-400">Conta Pai</th>
-                <th className="text-left p-4 text-gray-400">Status</th>
-                <th className="text-right p-4 text-gray-400">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contas.map((conta) => (
-                <tr key={conta.id} className="border-b border-gray-700">
-                  <td className="p-4 text-white">{conta.nome}</td>
-                  <td className="p-4 text-white">{conta.ordem}</td>
-                  <td className="p-4 text-white font-mono">{conta.simbolo}</td>
-                  <td className="p-4 text-white">{conta.conta_pai?.nome || '-'}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      conta.ativo 
-                        ? 'bg-green-500/20 text-green-300'
-                        : 'bg-red-500/20 text-red-300'
-                    }`}>
-                      {conta.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedConta(conta);
-                          setIsComponentsModalOpen(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title="Gerenciar Componentes"
-                      >
-                        <Calculator size={18} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedConta(conta);
-                          setIsEmpresasModalOpen(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title="Gerenciar Empresas"
-                      >
-                        <Building2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedConta(conta);
-                          setIsModalOpen(true);
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title="Editar"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleToggleActive(conta)}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
-                        title={conta.ativo ? 'Desativar' : 'Ativar'}
-                      >
-                        <Power size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(conta)}
-                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg"
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Coluna Secundária (30%) */}
+      <div className="flex-[3] bg-gray-800 rounded-xl p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-medium text-white">
+            {selectedConta ? 'Componentes' : 'Selecione uma conta'}
+          </h3>
+          {selectedConta && (
+            <Button
+              variant="secondary"
+              icon={Calculator}
+              onClick={() => setIsComponentsModalOpen(true)}
+            >
+              Gerenciar
+            </Button>
+          )}
         </div>
-      )}
 
-      {/* Modal de Criação/Edição */}
+        {!selectedConta ? (
+          <div className="text-gray-400 text-center py-8">
+            Selecione uma conta para visualizar seus componentes
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-gray-700/50 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-300 mb-2">Detalhes da Conta</h4>
+              <div className="space-y-2 text-sm">
+                <p className="text-gray-400">
+                  Ordem: <span className="text-white">{selectedConta.ordem}</span>
+                </p>
+                <p className="text-gray-400">
+                  Símbolo: <span className="text-white font-mono">{selectedConta.simbolo}</span>
+                </p>
+                <p className="text-gray-400">
+                  Visível: <span className="text-white">{selectedConta.visivel ? 'Sim' : 'Não'}</span>
+                </p>
+                {selectedConta.conta_pai && (
+                  <p className="text-gray-400">
+                    Conta Pai: <span className="text-white">{selectedConta.conta_pai.nome}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {loadingComponentes ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              </div>
+            ) : componentes.length > 0 ? (
+              <div className="space-y-2">
+                {componentes.map((componente) => (
+                  <div key={componente.id} className="bg-gray-700 rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-mono text-gray-400">{componente.simbolo}</span>
+                      <div>
+                        {componente.categoria ? (
+                          <div>
+                            <span className="text-white">{componente.categoria.nome}</span>
+                            <span className="text-gray-400 text-sm ml-2">
+                              ({componente.categoria.codigo})
+                            </span>
+                          </div>
+                        ) : componente.indicador ? (
+                          <div>
+                            <span className="text-white">{componente.indicador.nome}</span>
+                            <span className="text-gray-400 text-sm ml-2">
+                              ({componente.indicador.codigo})
+                            </span>
+                          </div>
+                        ) : componente.conta_componente ? (
+                          <span className="text-white">{componente.conta_componente.nome}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-400 text-center py-4">
+                Nenhum componente configurado
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Modais */}
       {isModalOpen && (
         <Modal
           title={selectedConta ? 'Editar Conta' : 'Nova Conta'}
@@ -356,107 +527,16 @@ const DreConfigPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Modal de Empresas */}
-      {isEmpresasModalOpen && selectedConta && (
-        <Modal
-          title="Gerenciar Empresas"
-          onClose={() => {
-            setSelectedConta(undefined);
-            setIsEmpresasModalOpen(false);
-          }}
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">
-                Selecione as empresas que usarão esta conta
-              </label>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {empresas.map(empresa => (
-                  <label
-                    key={empresa.id}
-                    className="flex items-center gap-3 p-2 hover:bg-gray-700 rounded-lg cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedEmpresas.includes(empresa.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedEmpresas([...selectedEmpresas, empresa.id]);
-                        } else {
-                          setSelectedEmpresas(selectedEmpresas.filter(id => id !== empresa.id));
-                        }
-                      }}
-                      className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-700"
-                    />
-                    <span className="text-white">{empresa.razao_social}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setSelectedConta(undefined);
-                  setIsEmpresasModalOpen(false);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    setLoading(true);
-
-                    // Remover associações existentes
-                    await supabase
-                      .from('dre_contas_empresa')
-                      .delete()
-                      .eq('conta_id', selectedConta.id);
-
-                    // Criar novas associações
-                    if (selectedEmpresas.length > 0) {
-                      const { error } = await supabase
-                        .from('dre_contas_empresa')
-                        .insert(
-                          selectedEmpresas.map(empresaId => ({
-                            conta_id: selectedConta.id,
-                            empresa_id: empresaId
-                          }))
-                        );
-
-                      if (error) throw error;
-                    }
-
-                    setIsEmpresasModalOpen(false);
-                    setSelectedConta(undefined);
-                    refetch();
-                  } catch (err) {
-                    console.error('Erro ao salvar empresas:', err);
-                    alert('Não foi possível salvar as empresas');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                loading={loading}
-              >
-                Salvar
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal de Componentes */}
       {isComponentsModalOpen && selectedConta && (
         <DreComponentsModal
           conta={selectedConta}
           onClose={() => {
-            setSelectedConta(undefined);
             setIsComponentsModalOpen(false);
           }}
-          onSave={refetch}
+          onSave={() => {
+            refetch();
+            fetchComponentes();
+          }}
         />
       )}
     </div>
