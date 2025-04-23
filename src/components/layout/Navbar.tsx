@@ -53,11 +53,14 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const getPageTitle = () => {
-    const path = location.pathname;
-    if (path === '/') return 'Home';
-    if (path === '/profile') return 'Meu Perfil';
-    return path.charAt(1).toUpperCase() + path.slice(2);
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const name = userProfile?.nome?.split(' ')[0] || 'Usuário';
+
+    if (hour >= 0 && hour < 6) return `Boa madrugada, ${name}`;
+    if (hour >= 6 && hour < 12) return `Bom dia, ${name}`;
+    if (hour >= 12 && hour < 18) return `Boa tarde, ${name}`;
+    return `Boa noite, ${name}`;
   };
 
   const handleLogout = async () => {
@@ -67,7 +70,7 @@ const Navbar: React.FC = () => {
 
   return (
     <div className="bg-black rounded-2xl p-4 flex items-center justify-between z-10">
-      <h1 className="text-white text-xl font-semibold">{getPageTitle()}</h1>
+      <h1 className="text-white text-xl font-semibold">{getGreeting()}</h1>
       <div className="flex items-center space-x-4">
         <button className="text-gray-400 hover:text-white transition-colors duration-200">
           <Bell size={20} />
@@ -76,14 +79,17 @@ const Navbar: React.FC = () => {
         <div className="relative" ref={settingsRef}>
           <button
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-gray-800"
+            className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-lg hover:bg-gray-800 min-w-[160px] justify-between"
           >
-            <Settings size={20} />
-            <span className="text-sm">Configurações</span>
+            <div className="flex items-center gap-2">
+              <Settings size={20} />
+              <span className="text-sm">Configurações</span>
+            </div>
+            <ChevronDown size={16} className={`transition-transform duration-200 ${isSettingsOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isSettingsOpen && (
-            <div className="absolute right-0 mt-2 bg-gray-800 rounded-lg shadow-lg py-1 min-w-[200px]">
+            <div className="absolute right-0 mt-2 bg-gray-800 rounded-lg shadow-lg py-1 min-w-[160px]">
               <button
                 onClick={() => navigate('/users')}
                 className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"

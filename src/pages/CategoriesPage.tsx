@@ -42,8 +42,8 @@ const CategoriesPage: React.FC = () => {
   });
 
   const { data: categories, loading, error, refetch } = useSupabaseQuery<Categoria>({
-    query: () => {
-      let query = supabase
+    query: async () => {
+      let categoriesQuery = supabase
         .from('categorias')
         .select(`
           *,
@@ -52,24 +52,29 @@ const CategoriesPage: React.FC = () => {
             nome,
             descricao
           )
-        `)
-        .order('codigo');
+        `);
 
       if (selectedType !== 'todos') {
-        query = query.eq('tipo', selectedType);
+        categoriesQuery = categoriesQuery.eq('tipo', selectedType);
       }
 
       if (selectedEmpresa) {
-        query = query.in(
-          'id',
-          supabase
-            .from('empresa_categorias')
-            .select('categoria_id')
-            .eq('empresa_id', selectedEmpresa)
-        );
+        const { data: empresaCategorias } = await supabase
+          .from('empresa_categorias')
+          .select('categoria_id')
+          .eq('empresa_id', selectedEmpresa);
+
+        const categoriaIds = empresaCategorias?.map(ec => ec.categoria_id) || [];
+        
+        if (categoriaIds.length === 0) {
+          // Se não houver categorias associadas, retornamos um array vazio
+          return { data: [], error: null };
+        }
+
+        categoriesQuery = categoriesQuery.in('id', categoriaIds);
       }
 
-      return query;
+      return categoriesQuery.order('codigo');
     },
     dependencies: [selectedType, selectedEmpresa],
   });

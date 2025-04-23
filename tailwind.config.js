@@ -6,7 +6,7 @@ export default {
       colors: {
         black: '#000000',
         gray: {
-          900: '#0F0F0F',
+          900: '#1A1A1A', // Ajustado para um tom mais claro
           800: '#1A1A1A',
           700: '#2C2C2C',
           600: '#3E3E3E',
