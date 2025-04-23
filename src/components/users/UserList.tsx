@@ -2,18 +2,12 @@ import React from 'react';
 import { Eye, Pencil, Trash2, Power } from 'lucide-react';
 import { Usuario } from '../../types/database';
 
-interface UserWithEmpresa extends Usuario {
-  empresa: {
-    razao_social: string;
-  } | null;
-}
-
 interface UserListProps {
-  users: UserWithEmpresa[];
-  onView: (user: UserWithEmpresa) => void;
-  onEdit: (user: UserWithEmpresa) => void;
-  onDelete: (user: UserWithEmpresa) => void;
-  onToggleActive: (user: UserWithEmpresa) => void;
+  users: Usuario[];
+  onView: (user: Usuario) => void;
+  onEdit: (user: Usuario) => void;
+  onDelete: (user: Usuario) => void;
+  onToggleActive: (user: Usuario) => void;
 }
 
 const UserList: React.FC<UserListProps> = ({
@@ -105,4 +99,4 @@ const UserList: React.FC<UserListProps> = ({
   );
 };
 
-export default UserList
+export default UserList;
