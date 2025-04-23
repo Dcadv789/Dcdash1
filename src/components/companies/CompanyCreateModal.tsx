@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Save, Edit } from 'lucide-react';
 import InputMask from 'react-input-mask';
 import { supabase } from '../../lib/supabase';
 import { Empresa, Socio } from '../../types/database';
@@ -22,6 +22,7 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
   const [socios, setSocios] = useState<Partial<Socio>[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingSocio, setEditingSocio] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +74,22 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
   };
 
   const handleAddSocio = () => {
-    setSocios([...socios, { nome: '' }]);
+    setSocios([...socios, { 
+      nome: '',
+      cpf: '',
+      percentual: null,
+      email: '',
+      telefone: ''
+    }]);
+    setEditingSocio(socios.length);
+  };
+
+  const handleSaveSocio = (index: number) => {
+    setEditingSocio(null);
+  };
+
+  const handleEditSocio = (index: number) => {
+    setEditingSocio(index);
   };
 
   const handleUpdateSocio = (index: number, field: keyof Socio, value: any) => {
@@ -84,11 +100,14 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
 
   const handleRemoveSocio = (index: number) => {
     setSocios(socios.filter((_, i) => i !== index));
+    if (editingSocio === index) {
+      setEditingSocio(null);
+    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl w-full max-w-2xl">
+      <div className="bg-gray-800 rounded-xl w-full max-w-4xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-white">Nova Empresa</h2>
           <button
@@ -211,14 +230,15 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
             <div className="space-y-4">
               {socios.map((socio, index) => (
                 <div key={index} className="bg-gray-700 p-4 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+                  <div className="grid grid-cols-6 gap-4 items-center">
+                    <div className="col-span-2">
                       <input
                         type="text"
                         value={socio.nome}
                         onChange={(e) => handleUpdateSocio(index, 'nome', e.target.value)}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="Nome do Sócio"
+                        disabled={editingSocio !== index}
                       />
                     </div>
                     <div>
@@ -228,6 +248,7 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
                         onChange={(e) => handleUpdateSocio(index, 'cpf', e.target.value)}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="CPF"
+                        disabled={editingSocio !== index}
                       />
                     </div>
                     <div>
@@ -240,13 +261,34 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
                         min="0"
                         max="100"
                         step="0.01"
+                        disabled={editingSocio !== index}
                       />
                     </div>
-                    <div>
+                    <div className="flex gap-2 justify-end col-span-2">
+                      {editingSocio === index ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSaveSocio(index)}
+                          className="p-2 text-green-400 hover:text-green-300 hover:bg-gray-600 rounded-lg"
+                          title="Salvar"
+                        >
+                          <Save size={20} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleEditSocio(index)}
+                          className="p-2 text-blue-400 hover:text-blue-300 hover:bg-gray-600 rounded-lg"
+                          title="Editar"
+                        >
+                          <Edit size={20} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleRemoveSocio(index)}
-                        className="text-red-400 hover:text-red-300"
+                        className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-600 rounded-lg"
+                        title="Excluir"
                       >
                         <Trash2 size={20} />
                       </button>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Save, Edit } from 'lucide-react';
 import InputMask from 'react-input-mask';
 import { Empresa, Socio } from '../../types/database';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +23,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
   const [socios, setSocios] = useState<Socio[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingSocio, setEditingSocio] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSocios();
@@ -77,25 +78,38 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
       .from('socios')
       .insert({
         empresa_id: company.id,
-        nome: 'Novo Sócio',
+        nome: '',
+        cpf: '',
+        percentual: null,
+        email: '',
+        telefone: '',
       })
       .select()
       .single();
 
     if (!error && data) {
       setSocios([...socios, data]);
+      setEditingSocio(data.id);
     }
   };
 
-  const handleUpdateSocio = async (socio: Socio, field: keyof Socio, value: any) => {
+  const handleSaveSocio = async (socio: Socio) => {
     const { error } = await supabase
       .from('socios')
-      .update({ [field]: value })
+      .update(socio)
       .eq('id', socio.id);
 
     if (!error) {
-      setSocios(socios.map(s => s.id === socio.id ? { ...s, [field]: value } : s));
+      setEditingSocio(null);
     }
+  };
+
+  const handleEditSocio = (socioId: string) => {
+    setEditingSocio(socioId);
+  };
+
+  const handleUpdateSocio = (socio: Socio, field: keyof Socio, value: any) => {
+    setSocios(socios.map(s => s.id === socio.id ? { ...s, [field]: value } : s));
   };
 
   const handleDeleteSocio = async (socioId: string) => {
@@ -106,12 +120,15 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
 
     if (!error) {
       setSocios(socios.filter(s => s.id !== socioId));
+      if (editingSocio === socioId) {
+        setEditingSocio(null);
+      }
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl w-full max-w-2xl">
+      <div className="bg-gray-800 rounded-xl w-full max-w-4xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-white">Editar Empresa</h2>
           <button
@@ -233,14 +250,15 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
             <div className="space-y-4">
               {socios.map((socio) => (
                 <div key={socio.id} className="bg-gray-700 p-4 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+                  <div className="grid grid-cols-6 gap-4 items-center">
+                    <div className="col-span-2">
                       <input
                         type="text"
                         value={socio.nome}
                         onChange={(e) => handleUpdateSocio(socio, 'nome', e.target.value)}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="Nome do Sócio"
+                        disabled={editingSocio !== socio.id}
                       />
                     </div>
                     <div>
@@ -250,6 +268,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                         onChange={(e) => handleUpdateSocio(socio, 'cpf', e.target.value)}
                         className="w-full bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-white"
                         placeholder="CPF"
+                        disabled={editingSocio !== socio.id}
                       />
                     </div>
                     <div>
@@ -262,13 +281,34 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                         min="0"
                         max="100"
                         step="0.01"
+                        disabled={editingSocio !== socio.id}
                       />
                     </div>
-                    <div>
+                    <div className="flex gap-2 justify-end col-span-2">
+                      {editingSocio === socio.id ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSaveSocio(socio)}
+                          className="p-2 text-green-400 hover:text-green-300 hover:bg-gray-600 rounded-lg"
+                          title="Salvar"
+                        >
+                          <Save size={20} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleEditSocio(socio.id)}
+                          className="p-2 text-blue-400 hover:text-blue-300 hover:bg-gray-600 rounded-lg"
+                          title="Editar"
+                        >
+                          <Edit size={20} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDeleteSocio(socio.id)}
-                        className="text-red-400 hover:text-red-300"
+                        className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-600 rounded-lg"
+                        title="Excluir"
                       >
                         <Trash2 size={20} />
                       </button>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Eye, Pencil, Trash2, Power } from 'lucide-react';
+import { Eye, Pencil, Trash2, Power, Building2, Calendar, Clock, Users } from 'lucide-react';
 import { Empresa } from '../../types/database';
+import { supabase } from '../../lib/supabase';
 
 interface CompanyCardProps {
   company: Empresa;
@@ -17,12 +18,54 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
   onDelete,
   onToggleActive,
 }) => {
+  const [sociosCount, setSociosCount] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    fetchSociosCount();
+  }, []);
+
+  const fetchSociosCount = async () => {
+    const { count } = await supabase
+      .from('socios')
+      .select('*', { count: 'exact', head: true })
+      .eq('empresa_id', company.id);
+    
+    setSociosCount(count || 0);
+  };
+
+  const calculateTimeAsClient = () => {
+    if (!company.data_inicio_contrato) return null;
+    
+    const startDate = new Date(company.data_inicio_contrato);
+    const today = new Date();
+    
+    const diffTime = Math.abs(today.getTime() - startDate.getTime());
+    const diffMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30));
+    
+    return diffMonths;
+  };
+
+  const clientTime = calculateTimeAsClient();
+
   return (
     <div className="bg-gray-800 rounded-xl p-6 flex flex-col">
       <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1">{company.razao_social}</h3>
-          <p className="text-gray-400 text-sm">{company.nome_fantasia || 'Nome Fantasia não informado'}</p>
+        <div className="flex items-center gap-3">
+          {company.logo_url ? (
+            <img 
+              src={company.logo_url} 
+              alt={company.razao_social}
+              className="w-12 h-12 rounded-lg object-contain bg-gray-700"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center">
+              <Building2 className="text-gray-500" size={24} />
+            </div>
+          )}
+          <div>
+            <h3 className="text-lg font-semibold text-white">{company.razao_social}</h3>
+            <p className="text-gray-400 text-sm">{company.nome_fantasia || 'Nome Fantasia não informado'}</p>
+          </div>
         </div>
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
           company.ativa 
@@ -33,20 +76,35 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
         </span>
       </div>
       
-      <div className="flex-1">
-        <div className="space-y-2">
-          <p className="text-sm">
-            <span className="text-gray-400">CNPJ: </span>
-            <span className="text-white">{company.cnpj || 'Não informado'}</span>
-          </p>
-          <p className="text-sm">
-            <span className="text-gray-400">Início do Contrato: </span>
-            <span className="text-white">
-              {company.data_inicio_contrato 
-                ? new Date(company.data_inicio_contrato).toLocaleDateString('pt-BR')
-                : 'Não informado'}
-            </span>
-          </p>
+      <div className="flex-1 space-y-3">
+        <div className="flex items-center gap-2 text-sm">
+          <Building2 size={16} className="text-gray-400" />
+          <span className="text-gray-400">CNPJ:</span>
+          <span className="text-white">{company.cnpj || 'Não informado'}</span>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar size={16} className="text-gray-400" />
+          <span className="text-gray-400">Início do Contrato:</span>
+          <span className="text-white">
+            {company.data_inicio_contrato 
+              ? new Date(company.data_inicio_contrato).toLocaleDateString('pt-BR')
+              : 'Não informado'}
+          </span>
+        </div>
+
+        {clientTime && (
+          <div className="flex items-center gap-2 text-sm">
+            <Clock size={16} className="text-gray-400" />
+            <span className="text-gray-400">Cliente há:</span>
+            <span className="text-white">{clientTime} meses</span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 text-sm">
+          <Users size={16} className="text-gray-400" />
+          <span className="text-gray-400">Sócios:</span>
+          <span className="text-white">{sociosCount}</span>
         </div>
       </div>
       
@@ -84,4 +142,4 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
   );
 };
 
-export default CompanyCard
+export default CompanyCard;
