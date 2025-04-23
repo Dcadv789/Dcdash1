@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Power, Eye, Building2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, Eye, Building2, Search, Calculator } from 'lucide-react';
 import { DreConfiguracao, Empresa } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
@@ -8,11 +8,13 @@ import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Button } from '../components/shared/Button';
 import { Modal } from '../components/shared/Modal';
+import DreComponentsModal from '../components/dre/DreComponentsModal';
 
 const DreConfigPage: React.FC = () => {
   const [selectedConta, setSelectedConta] = useState<DreConfiguracao | undefined>();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEmpresasModalOpen, setIsEmpresasModalOpen] = useState(false);
+  const [isComponentsModalOpen, setIsComponentsModalOpen] = useState(false);
   const [selectedEmpresas, setSelectedEmpresas] = useState<string[]>([]);
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -180,6 +182,16 @@ const DreConfigPage: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedConta(conta);
+                          setIsComponentsModalOpen(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                        title="Gerenciar Componentes"
+                      >
+                        <Calculator size={18} />
+                      </button>
                       <button
                         onClick={() => {
                           setSelectedConta(conta);
@@ -434,6 +446,18 @@ const DreConfigPage: React.FC = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Modal de Componentes */}
+      {isComponentsModalOpen && selectedConta && (
+        <DreComponentsModal
+          conta={selectedConta}
+          onClose={() => {
+            setSelectedConta(undefined);
+            setIsComponentsModalOpen(false);
+          }}
+          onSave={refetch}
+        />
       )}
     </div>
   );
