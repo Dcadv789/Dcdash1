@@ -20,16 +20,26 @@ const UsersPage: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
+      // Primeiro, vamos fazer uma consulta simples para verificar se estamos recebendo os dados
       const { data, error } = await supabase
         .from('usuarios')
-        .select(`
-          *,
-          empresa:empresas(razao_social)
-        `)
-        .order('nome');
+        .select('*');
 
-      if (error) throw error;
-      setUsers(data || []);
+      if (error) {
+        console.error('Erro Supabase:', error);
+        throw error;
+      }
+      
+      console.log('Dados brutos:', data);
+
+      // Formatar os dados para corresponder à interface esperada
+      const formattedUsers = data?.map(user => ({
+        ...user,
+        empresa: null // Temporariamente definindo empresa como null
+      })) || [];
+
+      console.log('Usuários formatados:', formattedUsers);
+      setUsers(formattedUsers);
     } catch (err) {
       console.error('Erro ao buscar usuários:', err);
       setError('Não foi possível carregar os usuários.');
@@ -40,12 +50,10 @@ const UsersPage: React.FC = () => {
 
   const handleView = (user: UserWithEmpresa) => {
     console.log('Visualizar usuário:', user);
-    // Implementar visualização
   };
 
   const handleEdit = (user: UserWithEmpresa) => {
     console.log('Editar usuário:', user);
-    // Implementar edição
   };
 
   const handleDelete = async (user: UserWithEmpresa) => {
