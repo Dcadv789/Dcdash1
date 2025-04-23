@@ -26,11 +26,34 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
     setLoading(false);
   };
 
+  const formatCNPJ = (cnpj: string | null) => {
+    if (!cnpj) return '-';
+    return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  };
+
+  const formatPhone = (phone: string | null) => {
+    if (!phone) return '-';
+    return phone.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl w-full max-w-4xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">Detalhes da Empresa</h2>
+          <div className="flex items-center gap-4">
+            {company.logo_url ? (
+              <img 
+                src={company.logo_url} 
+                alt={company.razao_social} 
+                className="w-12 h-12 object-contain rounded-lg bg-gray-700 p-1"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
+                <Building2 size={24} className="text-gray-500" />
+              </div>
+            )}
+            <h2 className="text-xl font-semibold text-white">{company.razao_social}</h2>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
@@ -40,41 +63,21 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
         </div>
         
         <div className="p-6">
-          <div className="flex items-center justify-center mb-6">
-            {company.logo_url ? (
-              <img 
-                src={company.logo_url} 
-                alt={company.razao_social} 
-                className="w-32 h-32 object-contain rounded-lg"
-              />
-            ) : (
-              <div className="w-32 h-32 bg-gray-700 rounded-lg flex items-center justify-center">
-                <Building2 size={64} className="text-gray-500" />
-              </div>
-            )}
-          </div>
-
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Razão Social</label>
-              <p className="text-white flex items-center gap-2">
-                <Building2 size={18} className="text-gray-400" />
-                {company.razao_social}
-              </p>
-            </div>
-            
-            <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nome Fantasia</label>
-              <p className="text-white flex items-center gap-2">
-                <Building2 size={18} className="text-gray-400" />
-                {company.nome_fantasia || '-'}
-              </p>
+              <p className="text-white">{company.nome_fantasia || '-'}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">CNPJ</label>
+              <p className="text-white">{formatCNPJ(company.cnpj)}</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
               <p className="text-white flex items-center gap-2">
-                <Mail size={18} className="text-gray-400" />
+                <Mail size={16} className="text-gray-400" />
                 {company.email || '-'}
               </p>
             </div>
@@ -82,16 +85,8 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Telefone</label>
               <p className="text-white flex items-center gap-2">
-                <Phone size={18} className="text-gray-400" />
-                {company.telefone || '-'}
-              </p>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">CNPJ</label>
-              <p className="text-white flex items-center gap-2">
-                <Building2 size={18} className="text-gray-400" />
-                {company.cnpj || '-'}
+                <Phone size={16} className="text-gray-400" />
+                {formatPhone(company.telefone)}
               </p>
             </div>
             
@@ -99,18 +94,18 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
               <label className="block text-sm font-medium text-gray-400 mb-1">Status</label>
               <p className="text-white flex items-center gap-2">
                 {company.ativa ? (
-                  <CheckCircle2 size={18} className="text-green-500" />
+                  <CheckCircle2 size={16} className="text-green-500" />
                 ) : (
-                  <XCircle size={18} className="text-red-500" />
+                  <XCircle size={16} className="text-red-500" />
                 )}
                 {company.ativa ? 'Ativa' : 'Inativa'}
               </p>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Data de Início do Contrato</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Data de Início</label>
               <p className="text-white flex items-center gap-2">
-                <Calendar size={18} className="text-gray-400" />
+                <Calendar size={16} className="text-gray-400" />
                 {company.data_inicio_contrato
                   ? new Date(company.data_inicio_contrato).toLocaleDateString('pt-BR')
                   : '-'}
@@ -118,9 +113,9 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Data de Cadastro</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Cadastrado em</label>
               <p className="text-white flex items-center gap-2">
-                <Clock size={18} className="text-gray-400" />
+                <Clock size={16} className="text-gray-400" />
                 {new Date(company.created_at).toLocaleDateString('pt-BR')}
               </p>
             </div>
@@ -139,22 +134,30 @@ const CompanyViewModal: React.FC<CompanyViewModalProps> = ({ company, onClose })
             ) : socios.length === 0 ? (
               <p className="text-gray-400 text-center py-4">Nenhum sócio cadastrado</p>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {socios.map((socio) => (
-                  <div key={socio.id} className="bg-gray-700 p-4 rounded-lg">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Nome</label>
-                        <p className="text-white">{socio.nome}</p>
+                  <div key={socio.id} className="bg-gray-700/50 p-4 rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
+                        <Users size={16} className="text-gray-300" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">CPF</label>
-                        <p className="text-white">{socio.cpf || '-'}</p>
+                        <h4 className="text-white font-medium">{socio.nome}</h4>
+                        <p className="text-gray-400 text-sm">
+                          {socio.percentual ? `${socio.percentual}%` : 'Percentual não informado'}
+                        </p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Percentual</label>
-                        <p className="text-white">{socio.percentual ? `${socio.percentual}%` : '-'}</p>
-                      </div>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-gray-300">
+                        CPF: {socio.cpf ? socio.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}
+                      </p>
+                      <p className="text-gray-300">
+                        Email: {socio.email || '-'}
+                      </p>
+                      <p className="text-gray-300">
+                        Tel: {socio.telefone ? socio.telefone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3') : '-'}
+                      </p>
                     </div>
                   </div>
                 ))}

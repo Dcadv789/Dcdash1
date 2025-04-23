@@ -55,7 +55,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
           data_inicio_contrato: formData.data_inicio_contrato || null,
           logo_url: formData.logo_url || null,
           email: formData.email || null,
-          telefone: formData.telefone || null,
+          telefone: formData.telefone.replace(/\D/g, '') || null,
         })
         .eq('id', company.id)
         .select()
@@ -206,6 +206,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="empresa@exemplo.com"
               />
             </div>
 
@@ -218,6 +219,7 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
                 value={formData.telefone}
                 onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="(00) 00000-0000"
               />
             </div>
             
@@ -341,4 +343,4 @@ const CompanyEditModal: React.FC<CompanyEditModalProps> = ({ company, onClose, o
   );
 };
 
-export default CompanyEditModal
+export default CompanyEditModal;

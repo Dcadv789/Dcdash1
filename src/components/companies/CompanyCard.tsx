@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Pencil, Trash2, Power, Building2, Calendar, Clock, Users } from 'lucide-react';
+import { Eye, Pencil, Trash2, Power, Building2, Calendar, Clock, Users, Mail, Phone } from 'lucide-react';
 import { Empresa } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 
@@ -45,6 +45,16 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
     return diffMonths;
   };
 
+  const formatCNPJ = (cnpj: string | null) => {
+    if (!cnpj) return 'Não informado';
+    return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  };
+
+  const formatPhone = (phone: string | null) => {
+    if (!phone) return 'Não informado';
+    return phone.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  };
+
   const clientTime = calculateTimeAsClient();
 
   return (
@@ -80,8 +90,24 @@ const CompanyCard: React.FC<CompanyCardProps> = ({
         <div className="flex items-center gap-2 text-sm">
           <Building2 size={16} className="text-gray-400" />
           <span className="text-gray-400">CNPJ:</span>
-          <span className="text-white">{company.cnpj || 'Não informado'}</span>
+          <span className="text-white">{formatCNPJ(company.cnpj)}</span>
         </div>
+
+        {company.email && (
+          <div className="flex items-center gap-2 text-sm">
+            <Mail size={16} className="text-gray-400" />
+            <span className="text-gray-400">Email:</span>
+            <span className="text-white">{company.email}</span>
+          </div>
+        )}
+
+        {company.telefone && (
+          <div className="flex items-center gap-2 text-sm">
+            <Phone size={16} className="text-gray-400" />
+            <span className="text-gray-400">Telefone:</span>
+            <span className="text-white">{formatPhone(company.telefone)}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 text-sm">
           <Calendar size={16} className="text-gray-400" />

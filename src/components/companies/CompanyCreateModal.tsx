@@ -40,7 +40,7 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
           data_inicio_contrato: formData.data_inicio_contrato || null,
           logo_url: formData.logo_url || null,
           email: formData.email || null,
-          telefone: formData.telefone || null,
+          telefone: formData.telefone.replace(/\D/g, '') || null,
           ativa: true
         })
         .select()
@@ -186,6 +186,7 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="empresa@exemplo.com"
               />
             </div>
 
@@ -198,6 +199,7 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
                 value={formData.telefone}
                 onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="(00) 00000-0000"
               />
             </div>
             
@@ -321,4 +323,4 @@ const CompanyCreateModal: React.FC<CompanyCreateModalProps> = ({ onClose, onSave
   );
 };
 
-export default CompanyCreateModal
+export default CompanyCreateModal;
