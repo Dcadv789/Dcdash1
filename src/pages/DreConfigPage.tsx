@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Power, Calculator, ChevronRight, ChevronDown, Building2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, Calculator, ChevronRight, ChevronDown, Building2, Search, ChevronLeft } from 'lucide-react';
 import { DreConfiguracao, Empresa } from '../types/database';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { supabase } from '../lib/supabase';
@@ -175,15 +175,16 @@ const DreConfigPage: React.FC = () => {
 
     setLoadingCompanies(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('dre_contas_empresa')
         .select('empresa_id')
         .eq('conta_id', selectedConta.id)
         .eq('ativo', true);
 
-      if (data) {
-        setSelectedCompanies(data.map(item => item.empresa_id));
-      }
+      if (error) throw error;
+      
+      // Handle the array of results instead of expecting a single object
+      setSelectedCompanies(data?.map(item => item.empresa_id) || []);
     } catch (err) {
       console.error('Erro ao carregar empresas da conta:', err);
     } finally {
@@ -209,7 +210,7 @@ const DreConfigPage: React.FC = () => {
           .select('id')
           .eq('conta_id', selectedConta.id)
           .eq('empresa_id', empresaId)
-          .single();
+          .maybeSingle(); // Use maybeSingle() instead of single() to handle cases where no row exists
 
         if (existing) {
           await supabase
