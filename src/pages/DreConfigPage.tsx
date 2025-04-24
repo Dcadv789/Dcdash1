@@ -65,11 +65,13 @@ const DreConfigPage: React.FC = () => {
           conta_pai:dre_configuracao!conta_pai_id (
             id,
             nome
-          )
+          ),
+          empresas:dre_contas_empresa!inner(empresa_id)
         `);
 
       if (selectedEmpresa) {
-        query = query.eq('dre_contas_empresa.empresa_id', selectedEmpresa);
+        query = query.eq('empresas.empresa_id', selectedEmpresa)
+          .eq('empresas.ativo', true);
       }
 
       if (searchTerm) {
@@ -183,7 +185,6 @@ const DreConfigPage: React.FC = () => {
 
       if (error) throw error;
       
-      // Handle the array of results instead of expecting a single object
       setSelectedCompanies(data?.map(item => item.empresa_id) || []);
     } catch (err) {
       console.error('Erro ao carregar empresas da conta:', err);
@@ -197,20 +198,18 @@ const DreConfigPage: React.FC = () => {
 
     setLoadingCompanies(true);
     try {
-      // Desativar associações existentes
       await supabase
         .from('dre_contas_empresa')
         .update({ ativo: false })
         .eq('conta_id', selectedConta.id);
 
-      // Criar ou reativar associações selecionadas
       for (const empresaId of selectedCompanies) {
         const { data: existing } = await supabase
           .from('dre_contas_empresa')
           .select('id')
           .eq('conta_id', selectedConta.id)
           .eq('empresa_id', empresaId)
-          .maybeSingle(); // Use maybeSingle() instead of single() to handle cases where no row exists
+          .maybeSingle();
 
         if (existing) {
           await supabase
