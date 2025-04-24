@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, Calculator, Pencil, Power, Trash2 } from 'lucide-react';
+import { Building2, Calculator, Pencil, Power, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { DreConfiguracao } from '../../types/database';
 
 interface ContaHierarquica extends DreConfiguracao {
@@ -43,9 +43,8 @@ const DreAccountList: React.FC<DreAccountListProps> = ({
             selectedConta?.id === conta.id ? 'ring-2 ring-blue-500' : ''
           } hover:bg-gray-600`}
         >
-          <div className="flex items-center p-4">
+          <div className="flex items-center p-4" style={{ paddingLeft: `${conta.nivel * 2 + 1}rem` }}>
             <div
-              style={{ paddingLeft: `${conta.nivel * 1.5}rem` }}
               className="flex-1 flex items-center gap-3 cursor-pointer"
               onClick={() => onSelectConta(conta)}
             >
@@ -55,7 +54,7 @@ const DreAccountList: React.FC<DreAccountListProps> = ({
                     e.stopPropagation();
                     onToggleExpanded(conta.id);
                   }}
-                  className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded"
+                  className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
                 >
                   {isExpanded ? (
                     <ChevronDown size={18} />
@@ -64,6 +63,7 @@ const DreAccountList: React.FC<DreAccountListProps> = ({
                   )}
                 </button>
               )}
+              {!hasChildren && <div className="w-[26px]" />}
               <span className="text-gray-400 font-mono">{conta.ordem}.</span>
               <span className="text-white font-medium">{conta.nome}</span>
               <span className="text-gray-400 font-mono">{conta.simbolo}</span>
@@ -115,7 +115,7 @@ const DreAccountList: React.FC<DreAccountListProps> = ({
           </div>
         </div>
         {hasChildren && isExpanded && (
-          <div className="space-y-2">
+          <div className="space-y-2 ml-4">
             {conta.contas_filhas!
               .sort((a, b) => a.ordem - b.ordem)
               .map(contaFilha => renderConta(contaFilha))}

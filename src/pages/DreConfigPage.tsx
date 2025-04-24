@@ -49,8 +49,7 @@ const DreConfigPage: React.FC = () => {
   const [expandedContas, setExpandedContas] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
-  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
-  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [filteredContas, setFilteredContas] = useState<DreConfiguracao[]>([]);
 
   const { data: empresas } = useSupabaseQuery<Empresa>({
     query: () => supabase
@@ -70,13 +69,11 @@ const DreConfigPage: React.FC = () => {
             id,
             nome
           ),
-          empresas:dre_contas_empresa!inner(empresa_id)
+          empresas:dre_contas_empresa(
+            empresa_id,
+            ativo
+          )
         `);
-
-      if (selectedEmpresa) {
-        query = query.eq('empresas.empresa_id', selectedEmpresa)
-          .eq('empresas.ativo', true);
-      }
 
       if (searchTerm) {
         query = query.ilike('nome', `%${searchTerm}%`);
@@ -84,47 +81,68 @@ const DreConfigPage: React.FC = () => {
 
       return query.order('ordem');
     },
-    dependencies: [selectedEmpresa, searchTerm],
+    dependencies: [searchTerm],
   });
+
+  // Filtrar contas baseado na empresa selecionada
+  useEffect(() => {
+    if (!contas) return;
+
+    if (!selectedEmpresa) {
+      setFilteredContas(contas);
+    } else {
+      const filteredContas = contas.filter(conta => {
+        if (!conta.empresas || conta.empresas.length === 0) return false;
+        return conta.empresas.some(e => e.empresa_id === selectedEmpresa && e.ativo);
+      });
+      setFilteredContas(filteredContas);
+    }
+  }, [selectedEmpresa, contas]);
 
   const organizarContasHierarquicamente = (contas: DreConfiguracao[]): ContaHierarquica[] => {
     const contasMap = new Map<string, ContaHierarquica>();
     const contasRaiz: ContaHierarquica[] = [];
 
+    // Primeiro, criar todas as contas com nível 0
     contas.forEach(conta => {
       contasMap.set(conta.id, { ...conta, contas_filhas: [], nivel: 0 });
     });
 
+    // Depois, organizar a hierarquia
     contas.forEach(conta => {
       const contaAtual = contasMap.get(conta.id)!;
       
       if (conta.conta_pai_id) {
         const contaPai = contasMap.get(conta.conta_pai_id);
         if (contaPai) {
-          contaPai.contas_filhas?.push(contaAtual);
-          contaAtual.nivel = contaPai.nivel + 1;
+          if (!contaPai.contas_filhas) {
+            contaPai.contas_filhas = [];
+          }
+          contaPai.contas_filhas.push(contaAtual);
+          contaAtual.nivel = (contaPai.nivel || 0) + 1;
+        } else {
+          contasRaiz.push(contaAtual);
         }
       } else {
         contasRaiz.push(contaAtual);
       }
     });
 
-    return contasRaiz.sort((a, b) => a.ordem - b.ordem);
+    // Ordenar contas raiz e contas filhas recursivamente
+    const ordenarContas = (contas: ContaHierarquica[]) => {
+      contas.sort((a, b) => a.ordem - b.ordem);
+      contas.forEach(conta => {
+        if (conta.contas_filhas && conta.contas_filhas.length > 0) {
+          ordenarContas(conta.contas_filhas);
+        }
+      });
+    };
+
+    ordenarContas(contasRaiz);
+    return contasRaiz;
   };
 
-  const contasHierarquicas = organizarContasHierarquicamente(contas);
-
-  const toggleExpanded = (contaId: string) => {
-    setExpandedContas(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(contaId)) {
-        newSet.delete(contaId);
-      } else {
-        newSet.add(contaId);
-      }
-      return newSet;
-    });
-  };
+  const contasHierarquicas = organizarContasHierarquicamente(filteredContas);
 
   useEffect(() => {
     if (selectedConta) {
@@ -166,6 +184,18 @@ const DreConfigPage: React.FC = () => {
     } finally {
       setLoadingComponentes(false);
     }
+  };
+
+  const toggleExpanded = (contaId: string) => {
+    setExpandedContas(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contaId)) {
+        newSet.delete(contaId);
+      } else {
+        newSet.add(contaId);
+      }
+      return newSet;
+    });
   };
 
   const handleSave = async (formData: Partial<DreConfiguracao>) => {
@@ -263,7 +293,7 @@ const DreConfigPage: React.FC = () => {
         />
 
         <div className="bg-gray-800 rounded-xl p-6 overflow-auto flex-1">
-          {contas.length === 0 ? (
+          {filteredContas.length === 0 ? (
             <EmptyState message="Nenhuma conta configurada." />
           ) : (
             <DreAccountList
