@@ -62,7 +62,8 @@ const Sidebar: React.FC = () => {
         <NavItem to="/lancamentos" icon={<BarChart size={20} />} label="Lançamentos" collapsed={collapsed} />
         <NavItem to="/categories" icon={<Database size={20} />} label="Categorias" collapsed={collapsed} />
         <NavItem to="/indicators" icon={<Database size={20} />} label="Indicadores" collapsed={collapsed} />
-        <NavItem to="/dreconfig" icon={<FileText size={20} />} label="DRE" collapsed={collapsed} />
+        <NavItem to="/dreconfig" icon={<FileText size={20} />} label="Config. DRE" collapsed={collapsed} />
+        <NavItem to="/dre" icon={<FileText size={20} />} label="DRE" collapsed={collapsed} />
       </nav>
       
       {!collapsed && <SystemStatus status={systemStatus} />}

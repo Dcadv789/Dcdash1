@@ -12,6 +12,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import IndicatorsPage from './pages/IndicatorsPage';
 import LancamentosPage from './pages/LancamentosPage';
 import DreConfigPage from './pages/DreConfigPage';
+import DrePage from './pages/DrePage';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="indicators" element={<IndicatorsPage />} />
             <Route path="lancamentos" element={<LancamentosPage />} />
             <Route path="dreconfig" element={<DreConfigPage />} />
+            <Route path="dre" element={<DrePage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
