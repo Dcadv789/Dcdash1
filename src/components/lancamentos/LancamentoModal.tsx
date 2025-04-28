@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload } from 'lucide-react';
-import { Categoria, Empresa, Indicador } from '../../types/database';
+import { Categoria, Cliente, Empresa, Indicador } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
@@ -22,6 +22,7 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [indicadores, setIndicadores] = useState<Indicador[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [formData, setFormData] = useState({
     valor: lancamento?.valor.toString() || '',
     tipo: lancamento?.tipo || 'receita',
@@ -31,6 +32,7 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
     categoria_codigo: '',
     indicador_id: lancamento?.indicador_id || '',
     indicador_codigo: '',
+    cliente_id: lancamento?.cliente_id || '',
     empresa_id: lancamento?.empresa_id || '',
     descricao: lancamento?.descricao || '',
   });
@@ -41,15 +43,17 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
 
   const fetchData = async () => {
     try {
-      const [empresasRes, categoriasRes, indicadoresRes] = await Promise.all([
+      const [empresasRes, categoriasRes, indicadoresRes, clientesRes] = await Promise.all([
         supabase.from('empresas').select('*').eq('ativa', true).order('razao_social'),
         supabase.from('categorias').select('*').eq('ativo', true).order('codigo'),
         supabase.from('indicadores').select('*').eq('ativo', true).order('codigo'),
+        supabase.from('clientes').select('*').eq('ativo', true).order('razao_social'),
       ]);
 
       if (empresasRes.data) setEmpresas(empresasRes.data);
       if (categoriasRes.data) setCategorias(categoriasRes.data);
       if (indicadoresRes.data) setIndicadores(indicadoresRes.data);
+      if (clientesRes.data) setClientes(clientesRes.data);
 
       // Preencher códigos iniciais se existirem
       if (lancamento?.categoria_id) {
@@ -77,9 +81,9 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
       ...prev,
       categoria_codigo: codigo,
       categoria_id: categoria?.id || '',
-      // Limpar indicador se categoria for selecionada
       indicador_id: '',
-      indicador_codigo: ''
+      indicador_codigo: '',
+      cliente_id: ''
     }));
   };
 
@@ -89,9 +93,9 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
       ...prev,
       categoria_id: id,
       categoria_codigo: categoria?.codigo || '',
-      // Limpar indicador se categoria for selecionada
       indicador_id: '',
-      indicador_codigo: ''
+      indicador_codigo: '',
+      cliente_id: ''
     }));
   };
 
@@ -101,9 +105,9 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
       ...prev,
       indicador_codigo: codigo,
       indicador_id: indicador?.id || '',
-      // Limpar categoria se indicador for selecionado
       categoria_id: '',
-      categoria_codigo: ''
+      categoria_codigo: '',
+      cliente_id: ''
     }));
   };
 
@@ -113,27 +117,41 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
       ...prev,
       indicador_id: id,
       indicador_codigo: indicador?.codigo || '',
-      // Limpar categoria se indicador for selecionado
       categoria_id: '',
-      categoria_codigo: ''
+      categoria_codigo: '',
+      cliente_id: ''
+    }));
+  };
+
+  const handleClienteId = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      cliente_id: id,
+      categoria_id: '',
+      categoria_codigo: '',
+      indicador_id: '',
+      indicador_codigo: ''
     }));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Aqui você pode implementar a lógica de processamento do arquivo
-    // Por enquanto, apenas mostraremos uma mensagem
     alert('Funcionalidade de upload será implementada em breve!');
   };
 
   const validateForm = (): string | null => {
-    if (formData.categoria_id && formData.indicador_id) {
-      return 'Você deve selecionar apenas categoria OU indicador, não ambos.';
+    const hasCategory = !!formData.categoria_id;
+    const hasIndicator = !!formData.indicador_id;
+    const hasClient = !!formData.cliente_id;
+    
+    const selectedCount = [hasCategory, hasIndicator, hasClient].filter(Boolean).length;
+    
+    if (selectedCount > 1) {
+      return 'Você deve selecionar apenas categoria, indicador OU cliente, não mais de um.';
     }
-    if (!formData.categoria_id && !formData.indicador_id) {
-      return 'Você deve selecionar uma categoria OU um indicador.';
+    if (selectedCount === 0) {
+      return 'Você deve selecionar uma categoria, indicador ou cliente.';
     }
     return null;
   };
@@ -141,7 +159,6 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validar formulário
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -159,6 +176,7 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
         ano: formData.ano,
         categoria_id: formData.categoria_id || null,
         indicador_id: formData.indicador_id || null,
+        cliente_id: formData.cliente_id || null,
         empresa_id: formData.empresa_id,
         descricao: formData.descricao || null,
       };
@@ -302,8 +320,8 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
           </div>
         </div>
 
-        {/* Segunda linha: Valor, Código Categoria e Código Indicador */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* Segunda linha: Valor e Tipo */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">
               Valor
@@ -318,35 +336,6 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Código da Categoria
-            </label>
-            <input
-              type="text"
-              value={formData.categoria_codigo}
-              onChange={(e) => handleCategoriaCodigo(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex: R0001"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Código do Indicador
-            </label>
-            <input
-              type="text"
-              value={formData.indicador_codigo}
-              onChange={(e) => handleIndicadorCodigo(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex: I0001"
-            />
-          </div>
-        </div>
-
-        {/* Terceira linha: Tipo, Categoria e Indicador */}
-        <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">
               Tipo
@@ -368,30 +357,46 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Terceira linha: Categoria, Indicador e Cliente */}
+        <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">
               Categoria
             </label>
-            <div className="relative">
-              <select
-                value={formData.categoria_id}
-                onChange={(e) => handleCategoriaId(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-              >
-                <option value="">Selecione</option>
-                {categorias
-                  .filter(cat => cat.tipo === formData.tipo)
-                  .map(categoria => (
-                    <option key={categoria.id} value={categoria.id}>
-                      {categoria.nome}
-                    </option>
-                  ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.categoria_codigo}
+                  onChange={(e) => handleCategoriaCodigo(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Código da categoria"
+                  disabled={!!formData.indicador_id || !!formData.cliente_id}
+                />
+              </div>
+              <div className="relative">
+                <select
+                  value={formData.categoria_id}
+                  onChange={(e) => handleCategoriaId(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                  disabled={!!formData.indicador_id || !!formData.cliente_id}
+                >
+                  <option value="">Selecione uma categoria</option>
+                  {categorias
+                    .filter(cat => cat.tipo === formData.tipo)
+                    .map(categoria => (
+                      <option key={categoria.id} value={categoria.id}>
+                        {categoria.nome}
+                      </option>
+                    ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -400,18 +405,59 @@ const LancamentoModal: React.FC<LancamentoModalProps> = ({
             <label className="block text-sm font-medium text-gray-400 mb-1">
               Indicador
             </label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.indicador_codigo}
+                  onChange={(e) => handleIndicadorCodigo(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Código do indicador"
+                  disabled={!!formData.categoria_id || !!formData.cliente_id}
+                />
+              </div>
+              <div className="relative">
+                <select
+                  value={formData.indicador_id}
+                  onChange={(e) => handleIndicadorId(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                  disabled={!!formData.categoria_id || !!formData.cliente_id}
+                >
+                  <option value="">Selecione um indicador</option>
+                  {indicadores.map(indicador => (
+                    <option key={indicador.id} value={indicador.id}>
+                      {indicador.nome}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Cliente
+            </label>
             <div className="relative">
               <select
-                value={formData.indicador_id}
-                onChange={(e) => handleIndicadorId(e.target.value)}
+                value={formData.cliente_id}
+                onChange={(e) => handleClienteId(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                disabled={!!formData.categoria_id || !!formData.indicador_id}
               >
-                <option value="">Selecione</option>
-                {indicadores.map(indicador => (
-                  <option key={indicador.id} value={indicador.id}>
-                    {indicador.nome}
-                  </option>
-                ))}
+                <option value="">Selecione um cliente</option>
+                {clientes
+                  .filter(cliente => !formData.empresa_id || cliente.empresa_id === formData.empresa_id)
+                  .map(cliente => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.razao_social}
+                    </option>
+                  ))}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                 <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

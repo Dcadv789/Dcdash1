@@ -26,6 +26,13 @@ const LancamentoViewModal: React.FC<LancamentoViewModalProps> = ({
     return months[month - 1];
   };
 
+  const getClassificacao = () => {
+    if (lancamento.categoria) return `Categoria: ${lancamento.categoria.nome}`;
+    if (lancamento.indicador) return `Indicador: ${lancamento.indicador.nome}`;
+    if (lancamento.cliente) return `Cliente: ${lancamento.cliente.razao_social}`;
+    return 'Não classificado';
+  };
+
   return (
     <Modal
       title="Detalhes do Lançamento"
@@ -73,21 +80,12 @@ const LancamentoViewModal: React.FC<LancamentoViewModalProps> = ({
             </p>
           </div>
 
-          <div>
+          <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-400 mb-1">
-              Categoria
+              Classificação
             </label>
             <p className="text-lg text-white">
-              {lancamento.categoria?.nome || '-'}
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Indicador
-            </label>
-            <p className="text-lg text-white">
-              {lancamento.indicador?.nome || '-'}
+              {getClassificacao()}
             </p>
           </div>
 

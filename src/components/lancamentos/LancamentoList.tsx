@@ -30,6 +30,13 @@ const LancamentoList: React.FC<LancamentoListProps> = ({
     return months[month - 1];
   };
 
+  const getClassificacao = (lancamento: Lancamento) => {
+    if (lancamento.categoria) return `Categoria: ${lancamento.categoria.nome}`;
+    if (lancamento.indicador) return `Indicador: ${lancamento.indicador.nome}`;
+    if (lancamento.cliente) return `Cliente: ${lancamento.cliente.razao_social}`;
+    return 'Não classificado';
+  };
+
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden">
       <table className="w-full">
@@ -38,8 +45,7 @@ const LancamentoList: React.FC<LancamentoListProps> = ({
             <th className="text-left p-4 text-gray-400">Data</th>
             <th className="text-left p-4 text-gray-400">Tipo</th>
             <th className="text-left p-4 text-gray-400">Valor</th>
-            <th className="text-left p-4 text-gray-400">Categoria</th>
-            <th className="text-left p-4 text-gray-400">Indicador</th>
+            <th className="text-left p-4 text-gray-400">Classificação</th>
             <th className="text-left p-4 text-gray-400">Empresa</th>
             <th className="text-right p-4 text-gray-400">Ações</th>
           </tr>
@@ -63,10 +69,7 @@ const LancamentoList: React.FC<LancamentoListProps> = ({
                 {formatValue(lancamento.valor)}
               </td>
               <td className="p-4 text-white">
-                {lancamento.categoria?.nome || '-'}
-              </td>
-              <td className="p-4 text-white">
-                {lancamento.indicador?.nome || '-'}
+                {getClassificacao(lancamento)}
               </td>
               <td className="p-4 text-white">
                 {lancamento.empresa?.razao_social || '-'}
