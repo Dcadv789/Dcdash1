@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { useDashboard } from '../hooks/useDashboard';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { ErrorAlert } from '../components/shared/ErrorAlert';
@@ -20,45 +21,9 @@ const DashboardPage: React.FC = () => {
       .order('razao_social'),
   });
 
-  const { data: dashboardData, loading, error } = useSupabaseQuery({
-    query: () => {
-      if (!selectedEmpresa) return Promise.resolve({ data: [] });
-
-      return supabase
-        .from('dashboard_config')
-        .select(`
-          *,
-          indicador:indicadores (
-            id,
-            nome,
-            codigo,
-            tipo_dado
-          ),
-          categoria:categorias (
-            id,
-            nome,
-            codigo
-          ),
-          chart_components:dashboard_chart_components (
-            id,
-            ordem,
-            cor,
-            categoria:categorias (
-              id,
-              nome
-            ),
-            indicador:indicadores (
-              id,
-              nome,
-              tipo_dado
-            )
-          )
-        `)
-        .eq('empresa_id', selectedEmpresa)
-        .eq('ativo', true)
-        .order('posicao');
-    },
-    dependencies: [selectedEmpresa],
+  const { data: dashboardData, loading, error } = useDashboard({
+    table: 'dashboard_config',
+    empresaId: selectedEmpresa
   });
 
   if (loading) return <LoadingSpinner />;
