@@ -17,6 +17,8 @@ import DashboardPage from './pages/DashboardPage';
 import ConfigDashboardPage from './pages/ConfigDashboardPage';
 import VendasPage from './pages/VendasPage';
 import ConfigVendasPage from './pages/ConfigVendasPage';
+import AnalysePage from './pages/AnalysePage';
+import ConfigAnalysePage from './pages/ConfigAnalysePage';
 
 function App() {
   return (
@@ -43,6 +45,8 @@ function App() {
             <Route path="configdashboard" element={<ConfigDashboardPage />} />
             <Route path="vendas" element={<VendasPage />} />
             <Route path="configvendas" element={<ConfigVendasPage />} />
+            <Route path="analysis" element={<AnalysePage />} />
+            <Route path="configanalysis" element={<ConfigAnalysePage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
