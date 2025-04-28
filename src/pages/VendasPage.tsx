@@ -6,6 +6,8 @@ import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import DashboardFilters from '../components/dashboard/DashboardFilters';
 import DashboardGrid from '../components/dashboard/DashboardGrid';
+import DashboardCard from '../components/dashboard/DashboardCard';
+import DashboardChart from '../components/dashboard/DashboardChart';
 
 const VendasPage: React.FC = () => {
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
