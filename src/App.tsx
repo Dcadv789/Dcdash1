@@ -15,6 +15,8 @@ import DreConfigPage from './pages/DreConfigPage';
 import DrePage from './pages/DrePage';
 import DashboardPage from './pages/DashboardPage';
 import ConfigDashboardPage from './pages/ConfigDashboardPage';
+import VendasPage from './pages/VendasPage';
+import ConfigVendasPage from './pages/ConfigVendasPage';
 
 function App() {
   return (
@@ -39,6 +41,8 @@ function App() {
             <Route path="dre" element={<DrePage />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="configdashboard" element={<ConfigDashboardPage />} />
+            <Route path="vendas" element={<VendasPage />} />
+            <Route path="configvendas" element={<ConfigVendasPage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
