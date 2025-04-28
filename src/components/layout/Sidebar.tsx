@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, Building2, ChevronLeft, ChevronRight, Database, BarChart, FileText } from 'lucide-react';
+import { Home, Users, Building2, ChevronLeft, ChevronRight, Database, BarChart, FileText, LayoutDashboard, Settings } from 'lucide-react';
 import { SystemStatus } from '../shared/SystemStatus';
 
 interface NavItemProps {
@@ -56,7 +56,8 @@ const Sidebar: React.FC = () => {
       </div>
       
       <nav className="flex-1 p-2 space-y-2">
-        <NavItem to="/" icon={<Home size={20} />} label="Home" collapsed={collapsed} />
+        <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" collapsed={collapsed} />
+        <NavItem to="/configdashboard" icon={<Settings size={20} />} label="Config. Dashboard" collapsed={collapsed} />
         <NavItem to="/users" icon={<Users size={20} />} label="Usuários" collapsed={collapsed} />
         <NavItem to="/companies" icon={<Building2 size={20} />} label="Empresas" collapsed={collapsed} />
         <NavItem to="/lancamentos" icon={<BarChart size={20} />} label="Lançamentos" collapsed={collapsed} />

@@ -13,6 +13,8 @@ import IndicatorsPage from './pages/IndicatorsPage';
 import LancamentosPage from './pages/LancamentosPage';
 import DreConfigPage from './pages/DreConfigPage';
 import DrePage from './pages/DrePage';
+import DashboardPage from './pages/DashboardPage';
+import ConfigDashboardPage from './pages/ConfigDashboardPage';
 
 function App() {
   return (
@@ -26,7 +28,7 @@ function App() {
               <Layout />
             </ProtectedRoute>
           }>
-            <Route index element={<HomePage />} />
+            <Route index element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="companies" element={<CompaniesPage />} />
             <Route path="profile" element={<ProfilePage />} />
@@ -35,6 +37,8 @@ function App() {
             <Route path="lancamentos" element={<LancamentosPage />} />
             <Route path="dreconfig" element={<DreConfigPage />} />
             <Route path="dre" element={<DrePage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="configdashboard" element={<ConfigDashboardPage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
