@@ -25,7 +25,7 @@ const ConfigAnalysePage: React.FC = () => {
   const { data: configs, loading, error, refetch } = useSupabaseQuery({
     query: () => {
       let query = supabase
-        .from('dashboard_config')
+        .from('analise_config')
         .select(`
           *,
           indicador:indicadores (
@@ -42,7 +42,7 @@ const ConfigAnalysePage: React.FC = () => {
             id,
             razao_social
           ),
-          chart_components:dashboard_chart_components (
+          chart_components:analise_chart_components (
             id,
             ordem,
             cor,
