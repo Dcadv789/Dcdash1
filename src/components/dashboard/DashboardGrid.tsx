@@ -62,7 +62,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
       )}
 
       {/* Bottom row - 2 cards */}
-      <div className="grid grid-cols-2 gap-4 h-48">
+      <div className="grid grid-cols-2 gap-4 h-64">
         {bottomCards.map(card => (
           <div key={card.id} className="h-full">
             <DashboardCard
