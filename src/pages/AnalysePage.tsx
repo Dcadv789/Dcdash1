@@ -25,7 +25,7 @@ const AnalysePage: React.FC = () => {
       if (!selectedEmpresa) return Promise.resolve({ data: [] });
 
       return supabase
-        .from('dashboard_config')
+        .from('analise_config')
         .select(`
           *,
           indicador:indicadores (
@@ -39,7 +39,7 @@ const AnalysePage: React.FC = () => {
             nome,
             codigo
           ),
-          chart_components:dashboard_chart_components (
+          chart_components:analise_chart_components (
             id,
             ordem,
             cor,

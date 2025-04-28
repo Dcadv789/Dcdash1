@@ -6,8 +6,6 @@ import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import DashboardFilters from '../components/dashboard/DashboardFilters';
 import DashboardGrid from '../components/dashboard/DashboardGrid';
-import DashboardCard from '../components/dashboard/DashboardCard';
-import DashboardChart from '../components/dashboard/DashboardChart';
 
 const VendasPage: React.FC = () => {
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
@@ -27,7 +25,7 @@ const VendasPage: React.FC = () => {
       if (!selectedEmpresa) return Promise.resolve({ data: [] });
 
       return supabase
-        .from('dashboard_config')
+        .from('vendas_config')
         .select(`
           *,
           indicador:indicadores (
@@ -41,7 +39,7 @@ const VendasPage: React.FC = () => {
             nome,
             codigo
           ),
-          chart_components:dashboard_chart_components (
+          chart_components:vendas_chart_components (
             id,
             ordem,
             cor,
@@ -65,11 +63,6 @@ const VendasPage: React.FC = () => {
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorAlert message={error} />;
-
-  // Separar os dados em três grupos: cards superiores, cards inferiores e gráfico
-  const topCards = dashboardData.filter(item => item.posicao >= 1 && item.posicao <= 4);
-  const bottomCards = dashboardData.filter(item => item.posicao >= 5 && item.posicao <= 8);
-  const chart = dashboardData.find(item => item.posicao === 9);
 
   return (
     <div className="h-full flex flex-col">
@@ -96,52 +89,11 @@ const VendasPage: React.FC = () => {
       ) : dashboardData.length === 0 ? (
         <EmptyState message="Nenhum indicador configurado para esta empresa" />
       ) : (
-        <div className="space-y-6 h-full">
-          {/* Cards superiores */}
-          <div className="grid grid-cols-4 gap-4">
-            {topCards.map(card => (
-              <DashboardCard
-                key={card.id}
-                title={card.titulo}
-                value={card.valor || 0}
-                variation={card.variacao || 0}
-                type={card.tipo_dado || 'moeda'}
-              />
-            ))}
-          </div>
-
-          {/* Cards inferiores */}
-          <div className="grid grid-cols-4 gap-4">
-            {bottomCards.map(card => (
-              <DashboardCard
-                key={card.id}
-                title={card.titulo}
-                value={card.valor || 0}
-                variation={card.variacao || 0}
-                type={card.tipo_dado || 'moeda'}
-              />
-            ))}
-          </div>
-
-          {/* Gráfico */}
-          {chart && (
-            <div className="flex-1 min-h-0 bg-gray-800 rounded-xl p-4">
-              <h3 className="text-gray-400 font-medium mb-2">{chart.titulo}</h3>
-              <div className="h-[calc(100%-2rem)]">
-                <DashboardChart
-                  title={chart.titulo}
-                  data={chart.data || []}
-                  type={chart.tipo_dado || 'moeda'}
-                  chartType={chart.tipo_grafico}
-                  components={chart.chart_components?.map(comp => ({
-                    name: comp.categoria?.nome || comp.indicador?.nome || 'Valor',
-                    color: comp.cor
-                  }))}
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        <DashboardGrid
+          data={dashboardData}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+        />
       )}
     </div>
   );
