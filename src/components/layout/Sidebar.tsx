@@ -39,7 +39,7 @@ const Sidebar: React.FC = () => {
   return (
     <div 
       className={`
-        bg-black rounded-2xl flex flex-col
+        bg-black rounded-2xl flex flex-col flex-shrink-0
         ${collapsed ? 'w-20' : 'w-64'}
       `}
     >

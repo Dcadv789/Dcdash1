@@ -216,16 +216,18 @@ const DrePage: React.FC = () => {
         onMonthChange={setSelectedMonth}
       />
 
-      {!selectedEmpresa ? (
-        <EmptyState message="Selecione uma empresa para visualizar o DRE" />
-      ) : contasCalculadas.length === 0 ? (
-        <EmptyState message="Nenhuma conta configurada para exibição" />
-      ) : (
-        <DreReport 
-          contas={contasCalculadas} 
-          meses={getMesesVisualizacao()}
-        />
-      )}
+      <div className="overflow-auto">
+        {!selectedEmpresa ? (
+          <EmptyState message="Selecione uma empresa para visualizar o DRE" />
+        ) : contasCalculadas.length === 0 ? (
+          <EmptyState message="Nenhuma conta configurada para exibição" />
+        ) : (
+          <DreReport 
+            contas={contasCalculadas} 
+            meses={getMesesVisualizacao()}
+          />
+        )}
+      </div>
     </div>
   );
 };
