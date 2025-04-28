@@ -65,21 +65,24 @@ const DashboardPage: React.FC = () => {
   if (error) return <ErrorAlert message={error} />;
 
   return (
-    <div className="h-full flex flex-col gap-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-white">Dashboard</h2>
-        <p className="text-gray-400 mt-1">Visualize os principais indicadores</p>
+    <div className="h-full flex flex-col">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-white">Dashboard</h2>
+          <p className="text-gray-400 mt-1">Visualize os principais indicadores</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <DashboardFilters
+            selectedEmpresa={selectedEmpresa}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            empresas={empresas}
+            onEmpresaChange={setSelectedEmpresa}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+          />
+        </div>
       </div>
-
-      <DashboardFilters
-        selectedEmpresa={selectedEmpresa}
-        selectedYear={selectedYear}
-        selectedMonth={selectedMonth}
-        empresas={empresas}
-        onEmpresaChange={setSelectedEmpresa}
-        onYearChange={setSelectedYear}
-        onMonthChange={setSelectedMonth}
-      />
 
       {!selectedEmpresa ? (
         <EmptyState message="Selecione uma empresa para visualizar o dashboard" />

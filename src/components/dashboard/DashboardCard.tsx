@@ -31,11 +31,11 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   };
 
   return (
-    <div className={`bg-gray-800 rounded-xl p-6 ${fullWidth ? 'col-span-2' : ''}`}>
-      <h3 className="text-gray-400 font-medium mb-4">{title}</h3>
+    <div className={`bg-gray-800 rounded-xl p-4 ${fullWidth ? 'col-span-2' : ''}`}>
+      <h3 className="text-gray-400 font-medium mb-2 truncate">{title}</h3>
       <div className="flex items-end justify-between">
         <div>
-          <p className="text-3xl font-semibold text-white mb-2">
+          <p className="text-2xl font-semibold text-white mb-1">
             {formatValue(value)}
           </p>
           <div className={`flex items-center gap-1 text-sm ${
