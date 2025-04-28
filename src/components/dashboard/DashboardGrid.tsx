@@ -46,7 +46,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
 
       {/* Middle row - 1 chart */}
       {middleCard && (
-        <div className="bg-gray-800 rounded-xl p-4 h-[400px]">
+        <div className="flex-1 bg-gray-800 rounded-xl p-4">
           <h3 className="text-gray-400 font-medium mb-2">{middleCard.titulo}</h3>
           <div className="h-[calc(100%-2rem)]">
             <DashboardChart
@@ -62,16 +62,17 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
       )}
 
       {/* Bottom row - 2 cards */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex gap-4 h-64">
         {bottomCards.map(card => (
-          <DashboardCard
-            key={card.id}
-            title={card.titulo}
-            value={0} // TODO: Implementar cálculo do valor
-            variation={0} // TODO: Implementar cálculo da variação
-            type={getDataType(card)}
-            fullWidth
-          />
+          <div key={card.id} className="flex-1">
+            <DashboardCard
+              title={card.titulo}
+              value={0} // TODO: Implementar cálculo do valor
+              variation={0} // TODO: Implementar cálculo da variação
+              type={getDataType(card)}
+              fullWidth
+            />
+          </div>
         ))}
       </div>
     </div>
