@@ -15,10 +15,6 @@ interface ContaComponente {
     nome: string;
     codigo: string;
   } | null;
-  conta_componente?: {
-    id: string;
-    nome: string;
-  } | null;
   simbolo: '+' | '-' | '=';
 }
 
@@ -90,8 +86,6 @@ const DreAccountDetails: React.FC<DreAccountDetailsProps> = ({
                         ({componente.indicador.codigo})
                       </span>
                     </div>
-                  ) : componente.conta_componente ? (
-                    <span className="text-white">{componente.conta_componente.nome}</span>
                   ) : null}
                 </div>
               </div>

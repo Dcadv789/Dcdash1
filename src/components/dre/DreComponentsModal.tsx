@@ -13,7 +13,7 @@ interface DreComponentsModalProps {
 
 interface Componente {
   id?: string;
-  tipo: 'categoria' | 'indicador' | 'conta';
+  tipo: 'categoria' | 'indicador';
   referencia_id: string;
   simbolo: '+' | '-' | '=';
   nome: string;
@@ -27,10 +27,9 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTipo, setSelectedTipo] = useState<'categoria' | 'indicador' | 'conta'>('categoria');
+  const [selectedTipo, setSelectedTipo] = useState<'categoria' | 'indicador'>('categoria');
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [indicadores, setIndicadores] = useState<Indicador[]>([]);
-  const [contas, setContas] = useState<DreConfiguracao[]>([]);
   const [componentes, setComponentes] = useState<Componente[]>([]);
 
   useEffect(() => {
@@ -40,7 +39,7 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
   const fetchData = async () => {
     try {
       // Buscar dados
-      const [categoriasRes, indicadoresRes, contasRes, componentesRes] = await Promise.all([
+      const [categoriasRes, indicadoresRes, componentesRes] = await Promise.all([
         supabase.from('categorias')
           .select('*')
           .eq('ativo', true)
@@ -49,17 +48,11 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
           .select('*')
           .eq('ativo', true)
           .order('codigo'),
-        supabase.from('dre_configuracao')
-          .select('*')
-          .eq('ativo', true)
-          .neq('id', conta.id)
-          .order('ordem'),
         supabase.from('dre_conta_componentes')
           .select(`
             id,
             categoria:categorias (id, nome, codigo),
             indicador:indicadores (id, nome, codigo),
-            conta_componente:dre_configuracao (id, nome),
             simbolo
           `)
           .eq('conta_id', conta.id)
@@ -67,7 +60,6 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
 
       if (categoriasRes.data) setCategorias(categoriasRes.data);
       if (indicadoresRes.data) setIndicadores(indicadoresRes.data);
-      if (contasRes.data) setContas(contasRes.data);
 
       // Processar componentes existentes
       if (componentesRes.data) {
@@ -82,22 +74,13 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
               codigo: comp.categoria.codigo
             };
           }
-          if (comp.indicador) {
-            return {
-              id: comp.id,
-              tipo: 'indicador' as const,
-              referencia_id: comp.indicador.id,
-              simbolo: comp.simbolo as '+' | '-' | '=',
-              nome: comp.indicador.nome,
-              codigo: comp.indicador.codigo
-            };
-          }
           return {
             id: comp.id,
-            tipo: 'conta' as const,
-            referencia_id: comp.conta_componente.id,
+            tipo: 'indicador' as const,
+            referencia_id: comp.indicador.id,
             simbolo: comp.simbolo as '+' | '-' | '=',
-            nome: comp.conta_componente.nome
+            nome: comp.indicador.nome,
+            codigo: comp.indicador.codigo
           };
         });
         setComponentes(comps);
@@ -127,7 +110,6 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
               conta_id: conta.id,
               categoria_id: comp.tipo === 'categoria' ? comp.referencia_id : null,
               indicador_id: comp.tipo === 'indicador' ? comp.referencia_id : null,
-              conta_componente_id: comp.tipo === 'conta' ? comp.referencia_id : null,
               simbolo: comp.simbolo
             }))
           );
@@ -145,7 +127,7 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
     }
   };
 
-  const addComponente = (tipo: 'categoria' | 'indicador' | 'conta', item: any) => {
+  const addComponente = (tipo: 'categoria' | 'indicador', item: any) => {
     setComponentes(prev => [...prev, {
       tipo,
       referencia_id: item.id,
@@ -181,12 +163,6 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
           (ind.codigo?.toLowerCase().includes(term) || ind.nome.toLowerCase().includes(term))
         );
       
-      case 'conta':
-        return contas.filter(c => 
-          !componentes.some(comp => comp.tipo === 'conta' && comp.referencia_id === c.id) &&
-          c.nome.toLowerCase().includes(term)
-        );
-      
       default:
         return [];
     }
@@ -214,12 +190,6 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
             >
               Indicadores
             </Button>
-            <Button
-              variant={selectedTipo === 'conta' ? 'primary' : 'secondary'}
-              onClick={() => setSelectedTipo('conta')}
-            >
-              Contas
-            </Button>
           </div>
 
           <div className="relative">
@@ -230,7 +200,7 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={`Buscar por ${selectedTipo === 'conta' ? 'nome' : 'código ou nome'}...`}
+              placeholder={`Buscar por código ou nome...`}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

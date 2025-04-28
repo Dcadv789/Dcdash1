@@ -9,12 +9,12 @@ import DreFilters from '../components/dre/DreFilters';
 import DreReport from '../components/dre/DreReport';
 
 interface ContaCalculada extends DreConfiguracao {
-  valor: number;
+  valores: { [key: string]: number };
+  total12Meses: number;
   contas_filhas?: ContaCalculada[];
 }
 
 const DrePage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
@@ -44,6 +44,26 @@ const DrePage: React.FC = () => {
       .order('ordem'),
   });
 
+  // Gerar array de meses para visualização
+  const getMesesVisualizacao = () => {
+    const meses = [];
+    let currentDate = new Date(selectedYear, selectedMonth - 1);
+    
+    // Voltar 12 meses
+    currentDate.setMonth(currentDate.getMonth() - 12);
+    
+    // Gerar array com 13 meses (mês atual + 12 meses anteriores)
+    for (let i = 0; i < 13; i++) {
+      meses.push({
+        mes: currentDate.getMonth() + 1,
+        ano: currentDate.getFullYear()
+      });
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    
+    return meses;
+  };
+
   useEffect(() => {
     if (selectedEmpresa && selectedYear && selectedMonth) {
       calcularValores();
@@ -55,6 +75,10 @@ const DrePage: React.FC = () => {
     setError(null);
 
     try {
+      const meses = getMesesVisualizacao();
+      const periodoInicial = meses[0];
+      const periodoFinal = meses[meses.length - 1];
+
       // Buscar todos os componentes e lançamentos de uma vez
       const [{ data: componentes }, { data: lancamentos }] = await Promise.all([
         supabase
@@ -69,18 +93,14 @@ const DrePage: React.FC = () => {
             indicador:indicadores (
               id,
               nome
-            ),
-            conta_componente:dre_configuracao (
-              id,
-              nome
             )
           `),
         supabase
           .from('lancamentos')
           .select('*')
           .eq('empresa_id', selectedEmpresa)
-          .eq('ano', selectedYear)
-          .eq('mes', selectedMonth)
+          .gte('ano', periodoInicial.ano)
+          .lte('ano', periodoFinal.ano)
       ]);
 
       if (!componentes || !lancamentos) throw new Error('Erro ao buscar dados');
@@ -89,39 +109,50 @@ const DrePage: React.FC = () => {
       const contasMap = new Map<string, ContaCalculada>();
       const contasRaiz: ContaCalculada[] = [];
 
-      // Inicializar todas as contas com valor 0
+      // Inicializar todas as contas com valores zerados para cada mês
       contas.forEach(conta => {
-        contasMap.set(conta.id, { ...conta, valor: 0 });
+        const valores: { [key: string]: number } = {};
+        meses.forEach(({ mes, ano }) => {
+          valores[`${ano}-${mes}`] = 0;
+        });
+
+        contasMap.set(conta.id, { 
+          ...conta, 
+          valores,
+          total12Meses: 0
+        });
       });
 
-      // Primeiro passo: calcular valores base dos componentes diretos (categorias e indicadores)
+      // Calcular valores para cada mês
       componentes.forEach(componente => {
         const conta = contasMap.get(componente.conta_id);
         if (!conta) return;
 
-        let valor = 0;
+        meses.forEach(({ mes, ano }) => {
+          let valor = 0;
 
-        // Calcular valor baseado em categoria
-        if (componente.categoria_id) {
-          valor = lancamentos
-            .filter(l => l.categoria_id === componente.categoria_id)
-            .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
-        }
-        // Calcular valor baseado em indicador
-        else if (componente.indicador_id) {
-          valor = lancamentos
-            .filter(l => l.indicador_id === componente.indicador_id)
-            .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
-        }
-        // Calcular valor baseado em outra conta
-        else if (componente.conta_componente_id) {
-          const contaComponente = contasMap.get(componente.conta_componente_id);
-          if (contaComponente) {
-            valor = contaComponente.valor;
+          // Calcular valor baseado em categoria
+          if (componente.categoria_id) {
+            valor = lancamentos
+              .filter(l => l.categoria_id === componente.categoria_id && l.mes === mes && l.ano === ano)
+              .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
           }
-        }
+          // Calcular valor baseado em indicador
+          else if (componente.indicador_id) {
+            valor = lancamentos
+              .filter(l => l.indicador_id === componente.indicador_id && l.mes === mes && l.ano === ano)
+              .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
+          }
 
-        conta.valor += componente.simbolo === '+' ? valor : -valor;
+          conta.valores[`${ano}-${mes}`] += componente.simbolo === '+' ? valor : -valor;
+        });
+      });
+
+      // Calcular total dos últimos 12 meses
+      contasMap.forEach(conta => {
+        conta.total12Meses = meses
+          .slice(1) // Excluir o primeiro mês (13 meses atrás)
+          .reduce((total, { mes, ano }) => total + conta.valores[`${ano}-${mes}`], 0);
       });
 
       // Organizar hierarquia e propagar valores
@@ -133,7 +164,12 @@ const DrePage: React.FC = () => {
           if (contaPai) {
             if (!contaPai.contas_filhas) contaPai.contas_filhas = [];
             contaPai.contas_filhas.push(contaCalculada);
-            contaPai.valor += contaCalculada.valor;
+            
+            // Propagar valores para a conta pai
+            meses.forEach(({ mes, ano }) => {
+              contaPai.valores[`${ano}-${mes}`] += contaCalculada.valores[`${ano}-${mes}`];
+            });
+            contaPai.total12Meses += contaCalculada.total12Meses;
           }
         } else {
           contasRaiz.push(contaCalculada);
@@ -171,12 +207,10 @@ const DrePage: React.FC = () => {
       </div>
 
       <DreFilters
-        searchTerm={searchTerm}
         selectedEmpresa={selectedEmpresa}
         selectedYear={selectedYear}
         selectedMonth={selectedMonth}
         empresas={empresas}
-        onSearchChange={setSearchTerm}
         onEmpresaChange={setSelectedEmpresa}
         onYearChange={setSelectedYear}
         onMonthChange={setSelectedMonth}
@@ -187,7 +221,10 @@ const DrePage: React.FC = () => {
       ) : contasCalculadas.length === 0 ? (
         <EmptyState message="Nenhuma conta configurada para exibição" />
       ) : (
-        <DreReport contas={contasCalculadas} />
+        <DreReport 
+          contas={contasCalculadas} 
+          meses={getMesesVisualizacao()}
+        />
       )}
     </div>
   );
