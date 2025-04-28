@@ -33,6 +33,27 @@ const DashboardPage: React.FC = () => {
             nome,
             codigo,
             tipo_dado
+          ),
+          categoria:categorias (
+            id,
+            nome,
+            codigo,
+            tipo_dado
+          ),
+          chart_components:dashboard_chart_components (
+            id,
+            ordem,
+            cor,
+            categoria:categorias (
+              id,
+              nome,
+              tipo_dado
+            ),
+            indicador:indicadores (
+              id,
+              nome,
+              tipo_dado
+            )
           )
         `)
         .eq('empresa_id', selectedEmpresa)
@@ -46,7 +67,7 @@ const DashboardPage: React.FC = () => {
   if (error) return <ErrorAlert message={error} />;
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col gap-6">
       <div>
         <h2 className="text-2xl font-semibold text-white">Dashboard</h2>
         <p className="text-gray-400 mt-1">Visualize os principais indicadores</p>
