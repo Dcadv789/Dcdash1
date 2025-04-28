@@ -20,12 +20,13 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [indicadores, setIndicadores] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     posicao: config?.posicao.toString() || '',
     titulo: config?.titulo || '',
     tipo_visualizacao: config?.tipo_visualizacao || 'card',
     tipo_grafico: config?.tipo_grafico || 'line',
-    componentes: [] as { tipo: 'indicador' | 'categoria'; id: string }[],
+    componentes: [] as { tipo: 'categoria' | 'indicador' | 'cliente'; id: string }[],
   });
 
   useEffect(() => {
@@ -58,7 +59,7 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
 
   const fetchData = async () => {
     try {
-      const [indicadoresRes, categoriasRes] = await Promise.all([
+      const [indicadoresRes, categoriasRes, clientesRes] = await Promise.all([
         supabase
           .from('indicadores')
           .select('*')
@@ -68,14 +69,21 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
           .from('categorias')
           .select('*')
           .eq('ativo', true)
-          .order('codigo')
+          .order('codigo'),
+        supabase
+          .from('clientes')
+          .select('*')
+          .eq('ativo', true)
+          .eq('empresa_id', empresaId)
+          .order('razao_social')
       ]);
 
       if (indicadoresRes.data) setIndicadores(indicadoresRes.data);
       if (categoriasRes.data) setCategorias(categoriasRes.data);
+      if (clientesRes.data) setClientes(clientesRes.data);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
-      setError('Erro ao carregar dados');
+      setError('Erro ao carregar dados necessários');
     }
   };
 
@@ -87,6 +95,18 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
     if (formData.tipo_visualizacao === 'card' && formData.componentes.length !== 1) {
       setError('Selecione exatamente 1 componente para o card');
       return false;
+    }
+    if (formData.tipo_visualizacao === 'list' && formData.componentes.length === 0) {
+      setError('Selecione pelo menos um componente para a lista');
+      return false;
+    }
+    // Validar se todos os componentes da lista são do mesmo tipo
+    if (formData.tipo_visualizacao === 'list' && formData.componentes.length > 0) {
+      const firstType = formData.componentes[0].tipo;
+      if (!formData.componentes.every(comp => comp.tipo === firstType)) {
+        setError('Todos os componentes da lista devem ser do mesmo tipo');
+        return false;
+      }
     }
     return true;
   };
@@ -111,26 +131,9 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
         empresa_id: empresaId,
       };
 
-      // Para card, usar apenas o primeiro componente
-      if (formData.tipo_visualizacao === 'card') {
-        const componente = formData.componentes[0];
-        if (componente.tipo === 'indicador') {
-          Object.assign(saveData, { 
-            indicador_id: componente.id, 
-            categoria_id: null 
-          });
-        } else {
-          Object.assign(saveData, { 
-            categoria_id: componente.id, 
-            indicador_id: null 
-          });
-        }
-      }
-
       let configId = config?.id;
 
       if (config) {
-        // Atualizar configuração existente
         const { error: updateError } = await supabase
           .from('dashboard_config')
           .update(saveData)
@@ -138,7 +141,6 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
 
         if (updateError) throw updateError;
       } else {
-        // Criar nova configuração
         const { data: configData, error: createError } = await supabase
           .from('dashboard_config')
           .insert(saveData)
@@ -149,30 +151,47 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
         if (configData) configId = configData.id;
       }
 
-      // Se for gráfico, gerenciar componentes
-      if (formData.tipo_visualizacao === 'chart' && configId) {
-        // Remover componentes existentes
-        await supabase
-          .from('dashboard_chart_components')
-          .delete()
-          .eq('dashboard_id', configId);
+      // Remover componentes existentes
+      if (configId) {
+        await Promise.all([
+          supabase
+            .from('dashboard_chart_components')
+            .delete()
+            .eq('dashboard_id', configId),
+          supabase
+            .from('dashboard_list_components')
+            .delete()
+            .eq('dashboard_id', configId)
+        ]);
 
         // Adicionar novos componentes
-        const componentesData = formData.componentes.map((comp, index) => ({
-          dashboard_id: configId,
-          ordem: index,
-          cor: '#3B82F6', // Cor padrão azul
-          ...(comp.tipo === 'indicador' 
-            ? { indicador_id: comp.id, categoria_id: null }
-            : { categoria_id: comp.id, indicador_id: null }
-          )
-        }));
+        if (formData.tipo_visualizacao === 'chart') {
+          const componentesData = formData.componentes.map((comp, index) => ({
+            dashboard_id: configId,
+            ordem: index,
+            cor: '#3B82F6',
+            ...(comp.tipo === 'indicador' 
+              ? { indicador_id: comp.id, categoria_id: null }
+              : { categoria_id: comp.id, indicador_id: null }
+            )
+          }));
 
-        const { error: componentsError } = await supabase
-          .from('dashboard_chart_components')
-          .insert(componentesData);
+          await supabase
+            .from('dashboard_chart_components')
+            .insert(componentesData);
+        } else if (formData.tipo_visualizacao === 'list') {
+          const componentesData = formData.componentes.map((comp, index) => ({
+            dashboard_id: configId,
+            ordem: index,
+            categoria_id: comp.tipo === 'categoria' ? comp.id : null,
+            indicador_id: comp.tipo === 'indicador' ? comp.id : null,
+            cliente_id: comp.tipo === 'cliente' ? comp.id : null
+          }));
 
-        if (componentsError) throw componentsError;
+          await supabase
+            .from('dashboard_list_components')
+            .insert(componentesData);
+        }
       }
 
       onSave();
@@ -185,7 +204,7 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
     }
   };
 
-  const handleAddComponente = (tipo: 'indicador' | 'categoria', id: string) => {
+  const handleAddComponente = (tipo: 'indicador' | 'categoria' | 'cliente', id: string) => {
     if (!id) return;
     
     setFormData(prev => {
@@ -195,8 +214,19 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
       }
 
       // Para gráfico, adicionar até 2 componentes
-      if (prev.componentes.length < 2 && !prev.componentes.some(c => c.id === id)) {
-        return { ...prev, componentes: [...prev.componentes, { tipo, id }] };
+      if (prev.tipo_visualizacao === 'chart') {
+        if (prev.componentes.length < 2 && !prev.componentes.some(c => c.id === id)) {
+          return { ...prev, componentes: [...prev.componentes, { tipo, id }] };
+        }
+      }
+
+      // Para lista, adicionar sem limite desde que seja do mesmo tipo
+      if (prev.tipo_visualizacao === 'list') {
+        if (prev.componentes.length === 0 || prev.componentes[0].tipo === tipo) {
+          if (!prev.componentes.some(c => c.id === id)) {
+            return { ...prev, componentes: [...prev.componentes, { tipo, id }] };
+          }
+        }
       }
 
       return prev;
@@ -210,20 +240,11 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
     }));
   };
 
-  const renderComponenteLabel = (componente: { tipo: 'indicador' | 'categoria'; id: string }) => {
-    if (componente.tipo === 'indicador') {
-      const ind = indicadores.find(i => i.id === componente.id);
-      return ind ? `${ind.codigo} - ${ind.nome}` : '';
-    } else {
-      const cat = categorias.find(c => c.id === componente.id);
-      return cat ? `${cat.codigo} - ${cat.nome}` : '';
-    }
-  };
-
   return (
     <Modal
       title={config ? 'Editar Configuração' : 'Nova Configuração'}
       onClose={onClose}
+      maxWidth="4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -269,7 +290,7 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
             onChange={(e) => {
               setFormData(prev => ({ 
                 ...prev, 
-                tipo_visualizacao: e.target.value as 'card' | 'chart',
+                tipo_visualizacao: e.target.value as 'card' | 'chart' | 'list',
                 componentes: [] // Limpar componentes ao mudar o tipo
               }));
             }}
@@ -278,6 +299,7 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
           >
             <option value="card">Card</option>
             <option value="chart">Gráfico</option>
+            <option value="list">Lista</option>
           </select>
         </div>
 
@@ -305,26 +327,40 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
             <label className="block text-sm font-medium text-gray-400 mb-2">
               {formData.tipo_visualizacao === 'card' 
                 ? 'Selecione um indicador ou categoria'
-                : 'Selecione dois componentes (indicadores e/ou categorias)'}
+                : formData.tipo_visualizacao === 'chart'
+                ? 'Selecione dois componentes (indicadores e/ou categorias)'
+                : 'Selecione os componentes (todos devem ser do mesmo tipo)'}
             </label>
 
             {/* Componentes selecionados */}
             {formData.componentes.length > 0 && (
               <div className="mb-4 space-y-2">
-                {formData.componentes.map((comp, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-700 p-2 rounded-lg">
-                    <span className="text-white">
-                      {renderComponenteLabel(comp)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveComponente(index)}
-                      className="text-gray-400 hover:text-red-400"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                {formData.componentes.map((comp, index) => {
+                  let label = '';
+                  if (comp.tipo === 'indicador') {
+                    const ind = indicadores.find(i => i.id === comp.id);
+                    label = ind ? `${ind.codigo} - ${ind.nome}` : '';
+                  } else if (comp.tipo === 'categoria') {
+                    const cat = categorias.find(c => c.id === comp.id);
+                    label = cat ? `${cat.codigo} - ${cat.nome}` : '';
+                  } else {
+                    const cli = clientes.find(c => c.id === comp.id);
+                    label = cli ? cli.razao_social : '';
+                  }
+
+                  return (
+                    <div key={index} className="flex items-center justify-between bg-gray-700 p-2 rounded-lg">
+                      <span className="text-white">{label}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveComponente(index)}
+                        className="text-gray-400 hover:text-red-400"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -350,7 +386,7 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
             </div>
 
             {/* Seleção de categorias */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-400 mb-1">
                 Categoria
               </label>
@@ -369,6 +405,29 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
                   ))}
               </select>
             </div>
+
+            {/* Seleção de clientes */}
+            {formData.tipo_visualizacao === 'list' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">
+                  Cliente
+                </label>
+                <select
+                  value=""
+                  onChange={(e) => handleAddComponente('cliente', e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione um cliente</option>
+                  {clientes
+                    .filter(cli => !formData.componentes.some(c => c.id === cli.id))
+                    .map(cliente => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {cliente.razao_social}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import DashboardCard from './DashboardCard';
 import DashboardChart from './DashboardChart';
+import DashboardList from './DashboardList';
 
 interface DashboardGridProps {
   data: any[];
@@ -16,6 +17,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
 }) => {
   const [cardValues, setCardValues] = useState<{ [key: string]: number }>({});
   const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
+  const [listData, setListData] = useState<{ [key: string]: any[] }>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
     const meses = getMesesRange();
     const newCardValues: { [key: string]: number } = {};
     const newChartData: { [key: string]: any[] } = {};
+    const newListData: { [key: string]: any[] } = {};
 
     try {
       // Buscar todos os lançamentos do período
@@ -118,13 +121,95 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
           });
 
           newChartData[config.id] = chartValues;
+        } else if (config.tipo_visualizacao === 'list') {
+          // Processar lista
+          let listValues = [];
+          
+          if (config.list_components && config.list_components.length > 0) {
+            const firstComponent = config.list_components[0];
+            
+            if (firstComponent.categoria) {
+              listValues = lancamentos
+                ?.filter(l => 
+                  config.list_components.some(comp => comp.categoria_id === l.categoria_id) &&
+                  l.mes === selectedMonth && 
+                  l.ano === selectedYear
+                )
+                .reduce((acc, l) => {
+                  const categoria = config.list_components.find(comp => comp.categoria_id === l.categoria_id)?.categoria;
+                  const existingItem = acc.find(item => item.id === l.categoria_id);
+                  
+                  if (existingItem) {
+                    existingItem.valor += l.tipo === 'receita' ? l.valor : -l.valor;
+                  } else if (categoria) {
+                    acc.push({
+                      id: l.categoria_id,
+                      nome: categoria.nome,
+                      valor: l.tipo === 'receita' ? l.valor : -l.valor
+                    });
+                  }
+                  return acc;
+                }, []);
+            } else if (firstComponent.indicador) {
+              listValues = lancamentos
+                ?.filter(l => 
+                  config.list_components.some(comp => comp.indicador_id === l.indicador_id) &&
+                  l.mes === selectedMonth && 
+                  l.ano === selectedYear
+                )
+                .reduce((acc, l) => {
+                  const indicador = config.list_components.find(comp => comp.indicador_id === l.indicador_id)?.indicador;
+                  const existingItem = acc.find(item => item.id === l.indicador_id);
+                  
+                  if (existingItem) {
+                    existingItem.valor += l.tipo === 'receita' ? l.valor : -l.valor;
+                  } else if (indicador) {
+                    acc.push({
+                      id: l.indicador_id,
+                      nome: indicador.nome,
+                      valor: l.tipo === 'receita' ? l.valor : -l.valor
+                    });
+                  }
+                  return acc;
+                }, []);
+            } else if (firstComponent.cliente) {
+              listValues = lancamentos
+                ?.filter(l => 
+                  config.list_components.some(comp => comp.cliente_id === l.cliente_id) &&
+                  l.mes === selectedMonth && 
+                  l.ano === selectedYear
+                )
+                .reduce((acc, l) => {
+                  const cliente = config.list_components.find(comp => comp.cliente_id === l.cliente_id)?.cliente;
+                  const existingItem = acc.find(item => item.id === l.cliente_id);
+                  
+                  if (existingItem) {
+                    existingItem.valor += l.tipo === 'receita' ? l.valor : -l.valor;
+                  } else if (cliente) {
+                    acc.push({
+                      id: l.cliente_id,
+                      nome: cliente.razao_social,
+                      valor: l.tipo === 'receita' ? l.valor : -l.valor
+                    });
+                  }
+                  return acc;
+                }, []);
+            }
+            
+            // Ordenar por valor e limitar a 5 itens
+            listValues.sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor));
+            listValues = listValues.slice(0, 5);
+          }
+          
+          newListData[config.id] = listValues;
         }
       }
 
       setCardValues(newCardValues);
       setChartData(newChartData);
-    } catch (error) {
-      console.error('Erro ao buscar dados:', error);
+      setListData(newListData);
+    } catch (err) {
+      console.error('Erro ao buscar dados:', err);
     } finally {
       setLoading(false);
     }
@@ -136,7 +221,6 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
     const mesAnterior = selectedMonth === 1 ? 12 : selectedMonth - 1;
     const anoAnterior = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
     
-    // Buscar valor do mês anterior nos lançamentos
     const config = data.find(c => c.id === configId);
     if (!config) return 0;
 
@@ -155,7 +239,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
     </div>;
   }
 
-  // Organizar os cards por posição
+  // Organizar os cards por pos
   const topCards = data.filter(item => item.posicao >= 1 && item.posicao <= 4);
   const middleCard = data.find(item => item.posicao === 5);
   const bottomCards = data.filter(item => item.posicao >= 6 && item.posicao <= 7);
@@ -175,47 +259,77 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
     <div className="h-[calc(100vh-12rem)] flex flex-col gap-4">
       {/* Top row - 4 cards */}
       <div className="grid grid-cols-4 gap-4">
-        {topCards.map(card => (
-          <DashboardCard
-            key={card.id}
-            title={card.titulo}
-            value={cardValues[card.id] || 0}
-            variation={calcularVariacao(card.id)}
-            type={getDataType(card)}
-          />
-        ))}
-      </div>
-
-      {/* Middle row - 1 chart */}
-      {middleCard && (
-        <div className="flex-1 min-h-0 bg-gray-800 rounded-xl p-4">
-          <h3 className="text-gray-400 font-medium mb-2">{middleCard.titulo}</h3>
-          <div className="h-[calc(100%-2rem)]">
-            <DashboardChart
-              title={middleCard.titulo}
-              data={chartData[middleCard.id] || []}
-              type={getDataType(middleCard)}
-              chartType={middleCard.tipo_grafico}
-              components={middleCard.chart_components?.map(comp => ({
-                name: comp.categoria?.nome || comp.indicador?.nome || 'Valor',
-                color: comp.cor
-              }))}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Bottom row - 2 cards */}
-      <div className="grid grid-cols-2 gap-4 h-64">
-        {bottomCards.map(card => (
-          <div key={card.id} className="h-full">
+        {topCards.map(card => {
+          if (card.tipo_visualizacao === 'list') {
+            return (
+              <DashboardList
+                key={card.id}
+                title={card.titulo}
+                items={listData[card.id] || []}
+                type={getDataType(card)}
+              />
+            );
+          }
+          return (
             <DashboardCard
+              key={card.id}
               title={card.titulo}
               value={cardValues[card.id] || 0}
               variation={calcularVariacao(card.id)}
               type={getDataType(card)}
-              fullWidth
             />
+          );
+        })}
+      </div>
+
+      {/* Middle row - 1 chart or list */}
+      {middleCard && (
+        <div className="flex-1 min-h-0 bg-gray-800 rounded-xl p-4">
+          <h3 className="text-gray-400 font-medium mb-2">{middleCard.titulo}</h3>
+          <div className="h-[calc(100%-2rem)]">
+            {middleCard.tipo_visualizacao === 'list' ? (
+              <DashboardList
+                title={middleCard.titulo}
+                items={listData[middleCard.id] || []}
+                type={getDataType(middleCard)}
+                fullWidth
+              />
+            ) : (
+              <DashboardChart
+                title={middleCard.titulo}
+                data={chartData[middleCard.id] || []}
+                type={getDataType(middleCard)}
+                chartType={middleCard.tipo_grafico}
+                components={middleCard.chart_components?.map(comp => ({
+                  name: comp.categoria?.nome || comp.indicador?.nome || 'Valor',
+                  color: comp.cor
+                }))}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom row - 2 cards or lists */}
+      <div className="grid grid-cols-2 gap-4 h-64">
+        {bottomCards.map(card => (
+          <div key={card.id} className="h-full">
+            {card.tipo_visualizacao === 'list' ? (
+              <DashboardList
+                title={card.titulo}
+                items={listData[card.id] || []}
+                type={getDataType(card)}
+                fullWidth
+              />
+            ) : (
+              <DashboardCard
+                title={card.titulo}
+                value={cardValues[card.id] || 0}
+                variation={calcularVariacao(card.id)}
+                type={getDataType(card)}
+                fullWidth
+              />
+            )}
           </div>
         ))}
       </div>
