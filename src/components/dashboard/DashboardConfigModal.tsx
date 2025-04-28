@@ -21,11 +21,9 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
   const [formData, setFormData] = useState({
     posicao: '',
     titulo: '',
-    tipo_visualizacao: 'card', // 'card' ou 'chart'
-    tipo: 'indicador', // 'indicador' ou 'categoria'
-    indicador_id: '',
-    categoria_id: '',
+    tipo_visualizacao: 'card',
     tipo_grafico: 'line',
+    componentes: [] as { tipo: 'indicador' | 'categoria'; id: string }[],
   });
 
   useEffect(() => {
@@ -61,26 +59,110 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
     setError(null);
 
     try {
-      const { error } = await supabase
-        .from('dashboard_config')
-        .insert({
-          posicao: parseInt(formData.posicao),
-          titulo: formData.titulo,
-          tipo_visualizacao: formData.tipo_visualizacao,
-          indicador_id: formData.tipo === 'indicador' ? formData.indicador_id : null,
-          categoria_id: formData.tipo === 'categoria' ? formData.categoria_id : null,
-          empresa_id: empresaId,
-          tipo_grafico: formData.tipo_visualizacao === 'chart' ? formData.tipo_grafico : null,
-        });
+      // Validar número de componentes para gráfico
+      if (formData.tipo_visualizacao === 'chart' && formData.componentes.length !== 2) {
+        throw new Error('Selecione exatamente 2 componentes para o gráfico');
+      }
 
-      if (error) throw error;
+      // Preparar dados para salvar
+      const saveData = {
+        posicao: parseInt(formData.posicao),
+        titulo: formData.titulo,
+        tipo_visualizacao: formData.tipo_visualizacao,
+        tipo_grafico: formData.tipo_visualizacao === 'chart' ? formData.tipo_grafico : null,
+        empresa_id: empresaId,
+      };
+
+      // Para card, usar apenas o primeiro componente
+      if (formData.tipo_visualizacao === 'card') {
+        const componente = formData.componentes[0];
+        if (componente.tipo === 'indicador') {
+          Object.assign(saveData, { indicador_id: componente.id, categoria_id: null });
+        } else {
+          Object.assign(saveData, { categoria_id: componente.id, indicador_id: null });
+        }
+      } else {
+        // Para gráfico, salvar primeiro componente e criar componente do gráfico para o segundo
+        const [comp1, comp2] = formData.componentes;
+        if (comp1.tipo === 'indicador') {
+          Object.assign(saveData, { indicador_id: comp1.id, categoria_id: null });
+        } else {
+          Object.assign(saveData, { categoria_id: comp1.id, indicador_id: null });
+        }
+
+        // Salvar configuração principal
+        const { data: configData, error: configError } = await supabase
+          .from('dashboard_config')
+          .insert(saveData)
+          .select()
+          .single();
+
+        if (configError) throw configError;
+
+        // Salvar segundo componente
+        if (configData) {
+          const componentData = {
+            dashboard_id: configData.id,
+            ordem: 1,
+            cor: '#3B82F6', // Cor padrão azul
+          };
+
+          if (comp2.tipo === 'indicador') {
+            Object.assign(componentData, { indicador_id: comp2.id });
+          } else {
+            Object.assign(componentData, { categoria_id: comp2.id });
+          }
+
+          const { error: componentError } = await supabase
+            .from('dashboard_chart_components')
+            .insert(componentData);
+
+          if (componentError) throw componentError;
+        }
+      }
+
       onSave();
       onClose();
     } catch (err) {
       console.error('Erro ao salvar configuração:', err);
-      setError('Não foi possível salvar a configuração');
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar a configuração');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddComponente = (tipo: 'indicador' | 'categoria', id: string) => {
+    if (!id) return;
+    
+    setFormData(prev => {
+      // Para card, substituir o componente existente
+      if (prev.tipo_visualizacao === 'card') {
+        return { ...prev, componentes: [{ tipo, id }] };
+      }
+
+      // Para gráfico, adicionar até 2 componentes
+      if (prev.componentes.length < 2 && !prev.componentes.some(c => c.id === id)) {
+        return { ...prev, componentes: [...prev.componentes, { tipo, id }] };
+      }
+
+      return prev;
+    });
+  };
+
+  const handleRemoveComponente = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      componentes: prev.componentes.filter((_, i) => i !== index)
+    }));
+  };
+
+  const renderComponenteLabel = (componente: { tipo: 'indicador' | 'categoria'; id: string }) => {
+    if (componente.tipo === 'indicador') {
+      const ind = indicadores.find(i => i.id === componente.id);
+      return ind ? `${ind.codigo} - ${ind.nome}` : '';
+    } else {
+      const cat = categorias.find(c => c.id === componente.id);
+      return cat ? `${cat.codigo} - ${cat.nome}` : '';
     }
   };
 
@@ -130,10 +212,13 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
           </label>
           <select
             value={formData.tipo_visualizacao}
-            onChange={(e) => setFormData(prev => ({ 
-              ...prev, 
-              tipo_visualizacao: e.target.value as 'card' | 'chart'
-            }))}
+            onChange={(e) => {
+              setFormData(prev => ({ 
+                ...prev, 
+                tipo_visualizacao: e.target.value as 'card' | 'chart',
+                componentes: [] // Limpar componentes ao mudar o tipo
+              }));
+            }}
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           >
@@ -161,66 +246,77 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1">
-            Tipo de Dado
-          </label>
-          <select
-            value={formData.tipo}
-            onChange={(e) => {
-              setFormData(prev => ({
-                ...prev,
-                tipo: e.target.value as 'indicador' | 'categoria',
-                indicador_id: '',
-                categoria_id: ''
-              }));
-            }}
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="indicador">Indicador</option>
-            <option value="categoria">Categoria</option>
-          </select>
-        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              {formData.tipo_visualizacao === 'card' 
+                ? 'Selecione um indicador ou categoria'
+                : 'Selecione dois componentes (indicadores e/ou categorias)'}
+            </label>
 
-        {formData.tipo === 'indicador' ? (
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Indicador
-            </label>
-            <select
-              value={formData.indicador_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, indicador_id: e.target.value }))}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Selecione um indicador</option>
-              {indicadores.map(indicador => (
-                <option key={indicador.id} value={indicador.id}>
-                  {indicador.codigo} - {indicador.nome}
-                </option>
-              ))}
-            </select>
+            {/* Componentes selecionados */}
+            {formData.componentes.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {formData.componentes.map((comp, index) => (
+                  <div key={index} className="flex items-center justify-between bg-gray-700 p-2 rounded-lg">
+                    <span className="text-white">
+                      {renderComponenteLabel(comp)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveComponente(index)}
+                      className="text-gray-400 hover:text-red-400"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Seleção de indicadores */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Indicador
+              </label>
+              <select
+                value=""
+                onChange={(e) => handleAddComponente('indicador', e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecione um indicador</option>
+                {indicadores
+                  .filter(ind => !formData.componentes.some(c => c.id === ind.id))
+                  .map(indicador => (
+                    <option key={indicador.id} value={indicador.id}>
+                      {indicador.codigo} - {indicador.nome}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Seleção de categorias */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Categoria
+              </label>
+              <select
+                value=""
+                onChange={(e) => handleAddComponente('categoria', e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecione uma categoria</option>
+                {categorias
+                  .filter(cat => !formData.componentes.some(c => c.id === cat.id))
+                  .map(categoria => (
+                    <option key={categoria.id} value={categoria.id}>
+                      {categoria.codigo} - {categoria.nome}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
-        ) : (
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Categoria
-            </label>
-            <select
-              value={formData.categoria_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, categoria_id: e.target.value }))}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Selecione uma categoria</option>
-              {categorias.map(categoria => (
-                <option key={categoria.id} value={categoria.id}>
-                  {categoria.codigo} - {categoria.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        </div>
 
         <div className="flex justify-end gap-3 pt-4">
           <Button
