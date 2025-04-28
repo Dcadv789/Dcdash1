@@ -37,8 +37,7 @@ const DashboardPage: React.FC = () => {
           categoria:categorias (
             id,
             nome,
-            codigo,
-            tipo_dado
+            codigo
           ),
           chart_components:dashboard_chart_components (
             id,
@@ -46,8 +45,7 @@ const DashboardPage: React.FC = () => {
             cor,
             categoria:categorias (
               id,
-              nome,
-              tipo_dado
+              nome
             ),
             indicador:indicadores (
               id,

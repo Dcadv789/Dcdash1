@@ -18,15 +18,15 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
   const middleCard = data.find(item => item.posicao === 5);
   const bottomCards = data.filter(item => item.posicao >= 6 && item.posicao <= 7);
 
-  // Helper function to get the data type safely
+  // Helper function para determinar o tipo de dado baseado no indicador ou categoria
   const getDataType = (item: any) => {
-    if (item?.indicador?.tipo_dado) {
+    if (item?.indicador) {
       return item.indicador.tipo_dado;
     }
-    if (item?.categoria?.tipo_dado) {
-      return item.categoria.tipo_dado;
+    if (item?.categoria) {
+      return 'moeda'; // Categorias sempre são valores monetários
     }
-    return 'number'; // Default type if neither is available
+    return 'moeda'; // Valor padrão
   };
 
   return (
