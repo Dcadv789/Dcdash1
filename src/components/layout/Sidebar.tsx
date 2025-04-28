@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, Building2, ChevronLeft, ChevronRight, Database, BarChart, FileText, LayoutDashboard, Settings, DollarSign, LineChart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutDashboard, DollarSign, LineChart, FileText } from 'lucide-react';
 import { SystemStatus } from '../shared/SystemStatus';
 
 interface NavItemProps {
@@ -57,17 +57,8 @@ const Sidebar: React.FC = () => {
       
       <nav className="flex-1 p-2 space-y-2">
         <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" collapsed={collapsed} />
-        <NavItem to="/configdashboard" icon={<Settings size={20} />} label="Config. Dashboard" collapsed={collapsed} />
         <NavItem to="/vendas" icon={<DollarSign size={20} />} label="Vendas" collapsed={collapsed} />
-        <NavItem to="/configvendas" icon={<Settings size={20} />} label="Config. Vendas" collapsed={collapsed} />
         <NavItem to="/analysis" icon={<LineChart size={20} />} label="Análise" collapsed={collapsed} />
-        <NavItem to="/configanalysis" icon={<Settings size={20} />} label="Config. Análise" collapsed={collapsed} />
-        <NavItem to="/users" icon={<Users size={20} />} label="Usuários" collapsed={collapsed} />
-        <NavItem to="/companies" icon={<Building2 size={20} />} label="Empresas" collapsed={collapsed} />
-        <NavItem to="/lancamentos" icon={<BarChart size={20} />} label="Lançamentos" collapsed={collapsed} />
-        <NavItem to="/categories" icon={<Database size={20} />} label="Categorias" collapsed={collapsed} />
-        <NavItem to="/indicators" icon={<Database size={20} />} label="Indicadores" collapsed={collapsed} />
-        <NavItem to="/dreconfig" icon={<FileText size={20} />} label="Config. DRE" collapsed={collapsed} />
         <NavItem to="/dre" icon={<FileText size={20} />} label="DRE" collapsed={collapsed} />
       </nav>
       
