@@ -62,9 +62,9 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
       )}
 
       {/* Bottom row - 2 cards */}
-      <div className="flex gap-4 h-64">
+      <div className="grid grid-cols-2 gap-4>
         {bottomCards.map(card => (
-          <div key={card.id} className="flex-1">
+          <div key={card.id}>
             <DashboardCard
               title={card.titulo}
               value={0} // TODO: Implementar cálculo do valor
