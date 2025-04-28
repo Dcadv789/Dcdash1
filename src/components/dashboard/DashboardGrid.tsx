@@ -46,19 +46,17 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
 
       {/* Middle row - 1 chart */}
       {middleCard && (
-        <div className="flex-1 min-h-0">
-          <div className="bg-gray-800 rounded-xl p-4 h-full">
-            <h3 className="text-gray-400 font-medium mb-2">{middleCard.titulo}</h3>
-            <div className="h-[calc(100%-2rem)]">
-              <DashboardChart
-                title={middleCard.titulo}
-                data={middleCard.chart_components?.map((comp: any) => ({
-                  name: `Componente ${comp.ordem + 1}`,
-                  value: 0 // TODO: Implementar cálculo do valor
-                })) || []}
-                type={getDataType(middleCard)}
-              />
-            </div>
+        <div className="bg-gray-800 rounded-xl p-4 h-[400px]">
+          <h3 className="text-gray-400 font-medium mb-2">{middleCard.titulo}</h3>
+          <div className="h-[calc(100%-2rem)]">
+            <DashboardChart
+              title={middleCard.titulo}
+              data={middleCard.chart_components?.map((comp: any) => ({
+                name: `Componente ${comp.ordem + 1}`,
+                value: 0 // TODO: Implementar cálculo do valor
+              })) || []}
+              type={getDataType(middleCard)}
+            />
           </div>
         </div>
       )}
@@ -72,6 +70,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
             value={0} // TODO: Implementar cálculo do valor
             variation={0} // TODO: Implementar cálculo da variação
             type={getDataType(card)}
+            fullWidth
           />
         ))}
       </div>
