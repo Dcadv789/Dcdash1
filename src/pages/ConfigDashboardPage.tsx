@@ -48,11 +48,13 @@ const ConfigDashboardPage: React.FC = () => {
             cor,
             categoria:categorias (
               id,
-              nome
+              nome,
+              codigo
             ),
             indicador:indicadores (
               id,
-              nome
+              nome,
+              codigo
             )
           )
         `)
