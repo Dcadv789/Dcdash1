@@ -21,9 +21,11 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
   const [formData, setFormData] = useState({
     posicao: '',
     titulo: '',
+    tipo_visualizacao: 'card', // 'card' ou 'chart'
     tipo: 'indicador', // 'indicador' ou 'categoria'
     indicador_id: '',
     categoria_id: '',
+    tipo_grafico: 'line',
   });
 
   useEffect(() => {
@@ -64,9 +66,11 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
         .insert({
           posicao: parseInt(formData.posicao),
           titulo: formData.titulo,
+          tipo_visualizacao: formData.tipo_visualizacao,
           indicador_id: formData.tipo === 'indicador' ? formData.indicador_id : null,
           categoria_id: formData.tipo === 'categoria' ? formData.categoria_id : null,
           empresa_id: empresaId,
+          tipo_grafico: formData.tipo_visualizacao === 'chart' ? formData.tipo_grafico : null,
         });
 
       if (error) throw error;
@@ -122,7 +126,44 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
 
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
-            Tipo
+            Tipo de Visualização
+          </label>
+          <select
+            value={formData.tipo_visualizacao}
+            onChange={(e) => setFormData(prev => ({ 
+              ...prev, 
+              tipo_visualizacao: e.target.value as 'card' | 'chart'
+            }))}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="card">Card</option>
+            <option value="chart">Gráfico</option>
+          </select>
+        </div>
+
+        {formData.tipo_visualizacao === 'chart' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Tipo de Gráfico
+            </label>
+            <select
+              value={formData.tipo_grafico}
+              onChange={(e) => setFormData(prev => ({ ...prev, tipo_grafico: e.target.value }))}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="line">Linha</option>
+              <option value="bar">Barras</option>
+              <option value="area">Área</option>
+              <option value="pie">Pizza</option>
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-400 mb-1">
+            Tipo de Dado
           </label>
           <select
             value={formData.tipo}
