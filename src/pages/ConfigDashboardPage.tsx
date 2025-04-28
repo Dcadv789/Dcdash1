@@ -12,6 +12,7 @@ import DashboardConfigModal from '../components/dashboard/DashboardConfigModal';
 const ConfigDashboardPage: React.FC = () => {
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedConfig, setSelectedConfig] = useState<any>(null);
 
   const { data: empresas } = useSupabaseQuery({
     query: () => supabase
@@ -40,6 +41,19 @@ const ConfigDashboardPage: React.FC = () => {
           empresa:empresas (
             id,
             razao_social
+          ),
+          chart_components:dashboard_chart_components (
+            id,
+            ordem,
+            cor,
+            categoria:categorias (
+              id,
+              nome
+            ),
+            indicador:indicadores (
+              id,
+              nome
+            )
           )
         `)
         .order('posicao');
@@ -64,7 +78,10 @@ const ConfigDashboardPage: React.FC = () => {
           <p className="text-gray-400 mt-1">Configure os indicadores e categorias que serão exibidos no dashboard</p>
         </div>
         <Button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setSelectedConfig(null);
+            setIsModalOpen(true);
+          }}
           icon={Plus}
         >
           Adicionar Card
@@ -101,13 +118,21 @@ const ConfigDashboardPage: React.FC = () => {
         <DashboardConfigList
           configs={configs}
           onRefetch={refetch}
+          onEdit={(config) => {
+            setSelectedConfig(config);
+            setIsModalOpen(true);
+          }}
         />
       )}
 
       {isModalOpen && (
         <DashboardConfigModal
           empresaId={selectedEmpresa}
-          onClose={() => setIsModalOpen(false)}
+          config={selectedConfig}
+          onClose={() => {
+            setSelectedConfig(null);
+            setIsModalOpen(false);
+          }}
           onSave={refetch}
         />
       )}

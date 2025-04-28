@@ -5,12 +5,14 @@ import { Button } from '../shared/Button';
 
 interface DashboardConfigModalProps {
   empresaId: string;
+  config?: any;
   onClose: () => void;
   onSave: () => void;
 }
 
 const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
   empresaId,
+  config,
   onClose,
   onSave,
 }) => {
@@ -19,16 +21,40 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
   const [indicadores, setIndicadores] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [formData, setFormData] = useState({
-    posicao: '',
-    titulo: '',
-    tipo_visualizacao: 'card',
-    tipo_grafico: 'line',
+    posicao: config?.posicao.toString() || '',
+    titulo: config?.titulo || '',
+    tipo_visualizacao: config?.tipo_visualizacao || 'card',
+    tipo_grafico: config?.tipo_grafico || 'line',
     componentes: [] as { tipo: 'indicador' | 'categoria'; id: string }[],
   });
 
   useEffect(() => {
     fetchData();
-  }, []);
+    if (config) {
+      // Carregar componentes existentes
+      const componentes = [];
+      if (config.indicador) {
+        componentes.push({ tipo: 'indicador' as const, id: config.indicador.id });
+      }
+      if (config.categoria) {
+        componentes.push({ tipo: 'categoria' as const, id: config.categoria.id });
+      }
+      if (config.chart_components) {
+        config.chart_components.forEach((comp: any) => {
+          if (comp.indicador) {
+            componentes.push({ tipo: 'indicador' as const, id: comp.indicador.id });
+          }
+          if (comp.categoria) {
+            componentes.push({ tipo: 'categoria' as const, id: comp.categoria.id });
+          }
+        });
+      }
+      setFormData(prev => ({
+        ...prev,
+        componentes
+      }));
+    }
+  }, [config]);
 
   const fetchData = async () => {
     try {
@@ -53,17 +79,29 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
     }
   };
 
+  const validateForm = () => {
+    if (formData.tipo_visualizacao === 'chart' && formData.componentes.length !== 2) {
+      setError('Selecione exatamente 2 componentes para o gráfico');
+      return false;
+    }
+    if (formData.tipo_visualizacao === 'card' && formData.componentes.length !== 1) {
+      setError('Selecione exatamente 1 componente para o card');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
-    try {
-      // Validar número de componentes para gráfico
-      if (formData.tipo_visualizacao === 'chart' && formData.componentes.length !== 2) {
-        throw new Error('Selecione exatamente 2 componentes para o gráfico');
-      }
+    if (!validateForm()) {
+      return;
+    }
 
+    setLoading(true);
+
+    try {
       // Preparar dados para salvar
       const saveData = {
         posicao: parseInt(formData.posicao),
@@ -77,48 +115,64 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
       if (formData.tipo_visualizacao === 'card') {
         const componente = formData.componentes[0];
         if (componente.tipo === 'indicador') {
-          Object.assign(saveData, { indicador_id: componente.id, categoria_id: null });
+          Object.assign(saveData, { 
+            indicador_id: componente.id, 
+            categoria_id: null 
+          });
         } else {
-          Object.assign(saveData, { categoria_id: componente.id, indicador_id: null });
+          Object.assign(saveData, { 
+            categoria_id: componente.id, 
+            indicador_id: null 
+          });
         }
-      } else {
-        // Para gráfico, salvar primeiro componente e criar componente do gráfico para o segundo
-        const [comp1, comp2] = formData.componentes;
-        if (comp1.tipo === 'indicador') {
-          Object.assign(saveData, { indicador_id: comp1.id, categoria_id: null });
-        } else {
-          Object.assign(saveData, { categoria_id: comp1.id, indicador_id: null });
-        }
+      }
 
-        // Salvar configuração principal
-        const { data: configData, error: configError } = await supabase
+      let configId = config?.id;
+
+      if (config) {
+        // Atualizar configuração existente
+        const { error: updateError } = await supabase
+          .from('dashboard_config')
+          .update(saveData)
+          .eq('id', config.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Criar nova configuração
+        const { data: configData, error: createError } = await supabase
           .from('dashboard_config')
           .insert(saveData)
           .select()
           .single();
 
-        if (configError) throw configError;
+        if (createError) throw createError;
+        if (configData) configId = configData.id;
+      }
 
-        // Salvar segundo componente
-        if (configData) {
-          const componentData = {
-            dashboard_id: configData.id,
-            ordem: 1,
-            cor: '#3B82F6', // Cor padrão azul
-          };
+      // Se for gráfico, gerenciar componentes
+      if (formData.tipo_visualizacao === 'chart' && configId) {
+        // Remover componentes existentes
+        await supabase
+          .from('dashboard_chart_components')
+          .delete()
+          .eq('dashboard_id', configId);
 
-          if (comp2.tipo === 'indicador') {
-            Object.assign(componentData, { indicador_id: comp2.id });
-          } else {
-            Object.assign(componentData, { categoria_id: comp2.id });
-          }
+        // Adicionar novos componentes
+        const componentesData = formData.componentes.map((comp, index) => ({
+          dashboard_id: configId,
+          ordem: index,
+          cor: '#3B82F6', // Cor padrão azul
+          ...(comp.tipo === 'indicador' 
+            ? { indicador_id: comp.id, categoria_id: null }
+            : { categoria_id: comp.id, indicador_id: null }
+          )
+        }));
 
-          const { error: componentError } = await supabase
-            .from('dashboard_chart_components')
-            .insert(componentData);
+        const { error: componentsError } = await supabase
+          .from('dashboard_chart_components')
+          .insert(componentesData);
 
-          if (componentError) throw componentError;
-        }
+        if (componentsError) throw componentsError;
       }
 
       onSave();
@@ -168,7 +222,7 @@ const DashboardConfigModal: React.FC<DashboardConfigModalProps> = ({
 
   return (
     <Modal
-      title="Nova Configuração"
+      title={config ? 'Editar Configuração' : 'Nova Configuração'}
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
