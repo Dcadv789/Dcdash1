@@ -75,7 +75,7 @@ const DreReport: React.FC<DreReportProps> = ({ contas, meses }) => {
     return (
       <React.Fragment key={conta.id}>
         <tr className="border-b border-gray-700">
-          <td className="p-4 sticky left-0 bg-gray-800" style={{ paddingLeft: `${nivel * 2 + 1}rem` }}>
+          <td className="p-4 sticky left-0 bg-gray-800 z-10 whitespace-nowrap" style={{ paddingLeft: `${nivel * 2 + 1}rem` }}>
             <div className="flex items-center gap-2">
               {hasChildren ? (
                 <button
@@ -121,7 +121,7 @@ const DreReport: React.FC<DreReportProps> = ({ contas, meses }) => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-700">
-              <th className="text-left p-4 sticky left-0 bg-gray-800 z-10 text-gray-400">Conta</th>
+              <th className="text-left p-4 sticky left-0 bg-gray-800 z-10 whitespace-nowrap text-gray-400">Conta</th>
               {meses.map(({ mes, ano }) => (
                 <th key={`${ano}-${mes}`} className="text-right p-4 text-gray-400 min-w-[120px]">
                   {getMonthName(mes)}/{String(ano).slice(2)}
