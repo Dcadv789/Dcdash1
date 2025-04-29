@@ -6,9 +6,50 @@ interface CalculationContext {
   empresaId: string;
 }
 
-export async function calcularValorConta(contaId: string, context: CalculationContext): Promise<number> {
-  const { mes, ano, empresaId } = context;
+// Cache para armazenar os lançamentos
+let lancamentosCache: any[] | null = null;
+let lastCacheKey = '';
 
+const getCacheKey = (context: CalculationContext) => {
+  return `${context.empresaId}-${context.mes}-${context.ano}`;
+};
+
+const clearCache = () => {
+  lancamentosCache = null;
+  lastCacheKey = '';
+};
+
+// Função para buscar todos os lançamentos de uma vez
+const fetchLancamentos = async (context: CalculationContext) => {
+  const cacheKey = getCacheKey(context);
+  
+  // Retornar do cache se disponível
+  if (lancamentosCache && lastCacheKey === cacheKey) {
+    return lancamentosCache;
+  }
+
+  const { data } = await supabase
+    .from('lancamentos')
+    .select('*')
+    .eq('empresa_id', context.empresaId)
+    .eq('mes', context.mes)
+    .eq('ano', context.ano);
+
+  // Atualizar cache
+  lancamentosCache = data || [];
+  lastCacheKey = cacheKey;
+
+  return lancamentosCache;
+};
+
+// Função auxiliar para calcular valor baseado em lançamentos
+const calcularValorLancamentos = (lancamentos: any[], referenciaId: string, tipo: 'categoria' | 'indicador') => {
+  return lancamentos
+    .filter(l => l[`${tipo}_id`] === referenciaId)
+    .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
+};
+
+export async function calcularValorConta(contaId: string, context: CalculationContext): Promise<number> {
   // 1. Verificar se é conta pai
   const { data: conta } = await supabase
     .from('dre_configuracao')
@@ -30,7 +71,7 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     return total;
   }
 
-  // 2. Verificar se tem componentes
+  // Buscar todos os componentes da conta
   const { data: componentes } = await supabase
     .from('dre_conta_componentes')
     .select(`
@@ -40,55 +81,34 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     `)
     .eq('conta_id', contaId);
 
+  // Buscar fórmula se existir
+  const { data: formula } = await supabase
+    .from('dre_conta_formulas')
+    .select('*')
+    .eq('conta_id', contaId)
+    .maybeSingle();
+
+  // Buscar lançamentos uma única vez
+  const lancamentos = await fetchLancamentos(context);
+
+  // 2. Se tem componentes, calcular baseado neles
   if (componentes && componentes.length > 0) {
     let total = 0;
     for (const componente of componentes) {
       let valor = 0;
 
-      // Buscar lançamentos do período
       if (componente.categoria_id) {
-        const { data: lancamentos } = await supabase
-          .from('lancamentos')
-          .select('valor, tipo')
-          .eq('categoria_id', componente.categoria_id)
-          .eq('empresa_id', empresaId)
-          .eq('mes', mes)
-          .eq('ano', ano);
-
-        if (lancamentos) {
-          valor = lancamentos.reduce((sum, l) => 
-            sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0
-          );
-        }
+        valor = calcularValorLancamentos(lancamentos, componente.categoria_id, 'categoria');
       } else if (componente.indicador_id) {
-        const { data: lancamentos } = await supabase
-          .from('lancamentos')
-          .select('valor, tipo')
-          .eq('indicador_id', componente.indicador_id)
-          .eq('empresa_id', empresaId)
-          .eq('mes', mes)
-          .eq('ano', ano);
-
-        if (lancamentos) {
-          valor = lancamentos.reduce((sum, l) => 
-            sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0
-          );
-        }
+        valor = calcularValorLancamentos(lancamentos, componente.indicador_id, 'indicador');
       }
 
-      // Aplicar o símbolo do componente
       total += componente.simbolo === '+' ? valor : -valor;
     }
     return total;
   }
 
-  // 3. Verificar se tem fórmula
-  const { data: formula } = await supabase
-    .from('dre_conta_formulas')
-    .select('*')
-    .eq('conta_id', contaId)
-    .single();
-
+  // 3. Se tem fórmula, calcular baseado nela
   if (formula) {
     const valor1 = await getOperandoValue(formula.operando_1_id, formula.operando_1_tipo, context);
     const valor2 = await getOperandoValue(formula.operando_2_id, formula.operando_2_tipo, context);
@@ -102,7 +122,6 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     }
   }
 
-  // 4. Se nada for encontrado, retornar 0
   return 0;
 }
 
@@ -111,41 +130,17 @@ async function getOperandoValue(
   tipo: 'conta' | 'categoria' | 'indicador',
   context: CalculationContext
 ): Promise<number> {
-  const { mes, ano, empresaId } = context;
+  const lancamentos = await fetchLancamentos(context);
 
   switch (tipo) {
     case 'conta':
       return calcularValorConta(id, context);
 
-    case 'categoria': {
-      const { data: lancamentos } = await supabase
-        .from('lancamentos')
-        .select('valor, tipo')
-        .eq('categoria_id', id)
-        .eq('empresa_id', empresaId)
-        .eq('mes', mes)
-        .eq('ano', ano);
+    case 'categoria':
+      return calcularValorLancamentos(lancamentos, id, 'categoria');
 
-      if (!lancamentos) return 0;
-      return lancamentos.reduce((sum, l) => 
-        sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0
-      );
-    }
-
-    case 'indicador': {
-      const { data: lancamentos } = await supabase
-        .from('lancamentos')
-        .select('valor, tipo')
-        .eq('indicador_id', id)
-        .eq('empresa_id', empresaId)
-        .eq('mes', mes)
-        .eq('ano', ano);
-
-      if (!lancamentos) return 0;
-      return lancamentos.reduce((sum, l) => 
-        sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0
-      );
-    }
+    case 'indicador':
+      return calcularValorLancamentos(lancamentos, id, 'indicador');
 
     default:
       return 0;
