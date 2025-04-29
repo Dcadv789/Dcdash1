@@ -21,6 +21,7 @@ const DrePage: React.FC = () => {
   const [contasCalculadas, setContasCalculadas] = useState<ContaCalculada[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVariation, setShowVariation] = useState(false);
 
   const { data: empresas } = useSupabaseQuery<Empresa>({
     query: () => supabase
@@ -30,18 +31,30 @@ const DrePage: React.FC = () => {
       .order('razao_social'),
   });
 
+  // Buscar contas do DRE associadas à empresa selecionada
   const { data: contas } = useSupabaseQuery<DreConfiguracao>({
-    query: () => supabase
-      .from('dre_configuracao')
-      .select(`
-        *,
-        conta_pai:dre_configuracao!conta_pai_id (
-          id,
-          nome
-        )
-      `)
-      .eq('ativo', true)
-      .order('ordem'),
+    query: () => {
+      if (!selectedEmpresa) return Promise.resolve({ data: [] });
+
+      return supabase
+        .from('dre_configuracao')
+        .select(`
+          *,
+          conta_pai:dre_configuracao!conta_pai_id (
+            id,
+            nome
+          ),
+          empresas:dre_contas_empresa!inner(
+            empresa_id,
+            ativo
+          )
+        `)
+        .eq('ativo', true)
+        .eq('dre_contas_empresa.empresa_id', selectedEmpresa)
+        .eq('dre_contas_empresa.ativo', true)
+        .order('ordem');
+    },
+    dependencies: [selectedEmpresa],
   });
 
   // Gerar array de meses para visualização
@@ -71,6 +84,8 @@ const DrePage: React.FC = () => {
   }, [selectedEmpresa, selectedYear, selectedMonth, contas]);
 
   const calcularValores = async () => {
+    if (!selectedEmpresa || !contas?.length) return;
+    
     setLoading(true);
     setError(null);
 
@@ -94,7 +109,8 @@ const DrePage: React.FC = () => {
               id,
               nome
             )
-          `),
+          `)
+          .in('conta_id', contas.map(c => c.id)),
         supabase
           .from('lancamentos')
           .select('*')
@@ -211,9 +227,11 @@ const DrePage: React.FC = () => {
         selectedYear={selectedYear}
         selectedMonth={selectedMonth}
         empresas={empresas}
+        showVariation={showVariation}
         onEmpresaChange={setSelectedEmpresa}
         onYearChange={setSelectedYear}
         onMonthChange={setSelectedMonth}
+        onToggleVariation={() => setShowVariation(!showVariation)}
       />
 
       <div className="overflow-auto">
@@ -225,6 +243,7 @@ const DrePage: React.FC = () => {
           <DreReport 
             contas={contasCalculadas} 
             meses={getMesesVisualizacao()}
+            showVariation={showVariation}
           />
         )}
       </div>

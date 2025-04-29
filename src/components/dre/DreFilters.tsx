@@ -1,14 +1,17 @@
 import React from 'react';
 import { Empresa } from '../../types/database';
+import { Button } from '../shared/Button';
 
 interface DreFiltersProps {
   selectedEmpresa: string;
   selectedYear: number;
   selectedMonth: number;
   empresas: Empresa[];
-  onEmpresaChange: (value: string) => void;
-  onYearChange: (value: number) => void;
-  onMonthChange: (value: number) => void;
+  showVariation: boolean;
+  onEmpresaChange: (empresaId: string) => void;
+  onYearChange: (year: number) => void;
+  onMonthChange: (month: number) => void;
+  onToggleVariation: () => void;
 }
 
 const DreFilters: React.FC<DreFiltersProps> = ({
@@ -16,9 +19,11 @@ const DreFilters: React.FC<DreFiltersProps> = ({
   selectedYear,
   selectedMonth,
   empresas = [],
+  showVariation,
   onEmpresaChange,
   onYearChange,
   onMonthChange,
+  onToggleVariation,
 }) => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -47,7 +52,7 @@ const DreFilters: React.FC<DreFiltersProps> = ({
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
           >
             <option value="">Selecione uma empresa</option>
-            {Array.isArray(empresas) && empresas.map(empresa => (
+            {empresas?.map(empresa => (
               <option key={empresa.id} value={empresa.id}>
                 {empresa.razao_social}
               </option>
@@ -96,6 +101,15 @@ const DreFilters: React.FC<DreFiltersProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </div>
+        </div>
+
+        <div className="ml-auto">
+          <Button
+            variant={showVariation ? 'primary' : 'secondary'}
+            onClick={onToggleVariation}
+          >
+            {showVariation ? 'Sem variação %' : 'Com variação %'}
+          </Button>
         </div>
       </div>
     </div>
