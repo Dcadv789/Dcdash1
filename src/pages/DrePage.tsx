@@ -7,6 +7,7 @@ import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import DreFilters from '../components/dre/DreFilters';
 import DreReport from '../components/dre/DreReport';
+import { calcularValorConta } from '../utils/dreCalculations';
 
 interface ContaCalculada extends DreConfiguracao {
   valores: { [key: string]: number };
@@ -78,7 +79,7 @@ const DrePage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (selectedEmpresa && selectedYear && selectedMonth) {
+    if (selectedEmpresa && selectedYear && selectedMonth && contas?.length) {
       calcularValores();
     }
   }, [selectedEmpresa, selectedYear, selectedMonth, contas]);
@@ -91,42 +92,11 @@ const DrePage: React.FC = () => {
 
     try {
       const meses = getMesesVisualizacao();
-      const periodoInicial = meses[0];
-      const periodoFinal = meses[meses.length - 1];
-
-      // Buscar todos os componentes e lançamentos de uma vez
-      const [{ data: componentes }, { data: lancamentos }] = await Promise.all([
-        supabase
-          .from('dre_conta_componentes')
-          .select(`
-            *,
-            categoria:categorias (
-              id,
-              nome,
-              tipo
-            ),
-            indicador:indicadores (
-              id,
-              nome
-            )
-          `)
-          .in('conta_id', contas.map(c => c.id)),
-        supabase
-          .from('lancamentos')
-          .select('*')
-          .eq('empresa_id', selectedEmpresa)
-          .gte('ano', periodoInicial.ano)
-          .lte('ano', periodoFinal.ano)
-      ]);
-
-      if (!componentes || !lancamentos) throw new Error('Erro ao buscar dados');
-
-      // Organizar contas em hierarquia e calcular valores
       const contasMap = new Map<string, ContaCalculada>();
       const contasRaiz: ContaCalculada[] = [];
 
-      // Inicializar todas as contas com valores zerados para cada mês
-      contas.forEach(conta => {
+      // Inicializar todas as contas com valores zerados
+      for (const conta of contas) {
         const valores: { [key: string]: number } = {};
         meses.forEach(({ mes, ano }) => {
           valores[`${ano}-${mes}`] = 0;
@@ -137,60 +107,39 @@ const DrePage: React.FC = () => {
           valores,
           total12Meses: 0
         });
-      });
+      }
 
-      // Calcular valores para cada mês
-      componentes.forEach(componente => {
-        const conta = contasMap.get(componente.conta_id);
-        if (!conta) return;
-
-        meses.forEach(({ mes, ano }) => {
-          let valor = 0;
-
-          // Calcular valor baseado em categoria
-          if (componente.categoria_id) {
-            valor = lancamentos
-              .filter(l => l.categoria_id === componente.categoria_id && l.mes === mes && l.ano === ano)
-              .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
-          }
-          // Calcular valor baseado em indicador
-          else if (componente.indicador_id) {
-            valor = lancamentos
-              .filter(l => l.indicador_id === componente.indicador_id && l.mes === mes && l.ano === ano)
-              .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
-          }
-
-          conta.valores[`${ano}-${mes}`] += componente.simbolo === '+' ? valor : -valor;
-        });
-      });
-
-      // Calcular total dos últimos 12 meses
-      contasMap.forEach(conta => {
-        conta.total12Meses = meses
-          .slice(1) // Excluir o primeiro mês (13 meses atrás)
-          .reduce((total, { mes, ano }) => total + conta.valores[`${ano}-${mes}`], 0);
-      });
-
-      // Organizar hierarquia e propagar valores
-      contas.forEach(conta => {
+      // Calcular valores para cada conta
+      for (const conta of contas) {
         const contaCalculada = contasMap.get(conta.id)!;
         
+        // Calcular valores para cada mês
+        for (const { mes, ano } of meses) {
+          const valor = await calcularValorConta(conta.id, {
+            mes,
+            ano,
+            empresaId: selectedEmpresa
+          });
+          
+          contaCalculada.valores[`${ano}-${mes}`] = valor;
+        }
+
+        // Calcular total dos últimos 12 meses
+        contaCalculada.total12Meses = meses
+          .slice(1) // Excluir o primeiro mês (13 meses atrás)
+          .reduce((total, { mes, ano }) => total + contaCalculada.valores[`${ano}-${mes}`], 0);
+
+        // Organizar hierarquia
         if (conta.conta_pai_id) {
           const contaPai = contasMap.get(conta.conta_pai_id);
           if (contaPai) {
             if (!contaPai.contas_filhas) contaPai.contas_filhas = [];
             contaPai.contas_filhas.push(contaCalculada);
-            
-            // Propagar valores para a conta pai
-            meses.forEach(({ mes, ano }) => {
-              contaPai.valores[`${ano}-${mes}`] += contaCalculada.valores[`${ano}-${mes}`];
-            });
-            contaPai.total12Meses += contaCalculada.total12Meses;
           }
         } else {
           contasRaiz.push(contaCalculada);
         }
-      });
+      }
 
       // Ordenar contas filhas pela ordem
       const ordenarContasFilhas = (contas: ContaCalculada[]) => {
