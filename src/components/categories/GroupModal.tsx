@@ -45,7 +45,8 @@ const GroupModal: React.FC<GroupModalProps> = ({ group, onClose, onSave }) => {
         if (error) throw error;
       }
 
-      onSave();
+      // Chamar onSave antes de fechar o modal
+      await onSave();
       onClose();
     } catch (err) {
       console.error('Erro ao salvar grupo:', err);
