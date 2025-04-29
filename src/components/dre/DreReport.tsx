@@ -20,8 +20,10 @@ const DreReport: React.FC<DreReportProps> = ({ contas, meses }) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-      signDisplay: 'always'
-    }).format(value);
+      signDisplay: 'never',
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    }).format(Math.abs(value));
   };
 
   const getMonthName = (month: number) => {
@@ -75,7 +77,7 @@ const DreReport: React.FC<DreReportProps> = ({ contas, meses }) => {
     return (
       <React.Fragment key={conta.id}>
         <tr className="border-b border-gray-700">
-          <td className="p-4 sticky left-0 bg-gray-800 z-10 whitespace-nowrap" style={{ paddingLeft: `${nivel * 2 + 1}rem` }}>
+          <td className="p-2 sticky left-0 bg-gray-800 z-10 whitespace-nowrap" style={{ paddingLeft: `${nivel * 2 + 1}rem` }}>
             <div className="flex items-center gap-2">
               {hasChildren ? (
                 <button
@@ -95,14 +97,14 @@ const DreReport: React.FC<DreReportProps> = ({ contas, meses }) => {
             const periodo = `${ano}-${mes}`;
             const valor = calcularValorConta(conta, periodo);
             return (
-              <td key={`${ano}-${mes}`} className="p-4 text-right min-w-[120px]">
+              <td key={`${ano}-${mes}`} className="p-2 text-right whitespace-nowrap">
                 <span className={`font-mono ${valor >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {formatValue(valor)}
                 </span>
               </td>
             );
           })}
-          <td className="p-4 text-right min-w-[120px] bg-gray-700/50">
+          <td className="p-2 text-right whitespace-nowrap bg-gray-700/50">
             <span className={`font-mono font-medium ${calcularTotal12Meses(conta) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {formatValue(calcularTotal12Meses(conta))}
             </span>
@@ -121,13 +123,13 @@ const DreReport: React.FC<DreReportProps> = ({ contas, meses }) => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-700">
-              <th className="text-left p-4 sticky left-0 bg-gray-800 z-10 whitespace-nowrap text-gray-400">Conta</th>
+              <th className="text-left p-2 sticky left-0 bg-gray-800 z-10 whitespace-nowrap text-gray-400">Conta</th>
               {meses.map(({ mes, ano }) => (
-                <th key={`${ano}-${mes}`} className="text-right p-4 text-gray-400 min-w-[120px]">
+                <th key={`${ano}-${mes}`} className="text-right p-2 text-gray-400 whitespace-nowrap">
                   {getMonthName(mes)}/{String(ano).slice(2)}
                 </th>
               ))}
-              <th className="text-right p-4 text-gray-400 min-w-[120px] bg-gray-700/50">
+              <th className="text-right p-2 text-gray-400 whitespace-nowrap bg-gray-700/50">
                 Total 12M
               </th>
             </tr>
