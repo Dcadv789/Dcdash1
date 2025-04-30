@@ -7,7 +7,6 @@ import { ErrorAlert } from '../components/shared/ErrorAlert';
 import { EmptyState } from '../components/shared/EmptyState';
 import DreFilters from '../components/dre/DreFilters';
 import DreReport from '../components/dre/DreReport';
-import { calcularValorConta } from '../utils/dreCalculations';
 
 interface ContaCalculada extends DreConfiguracao {
   valores: { [key: string]: number };
@@ -92,36 +91,87 @@ const DrePage: React.FC = () => {
 
     try {
       const meses = getMesesVisualizacao();
+      
+      // Buscar todos os lançamentos de uma vez
+      const { data: lancamentos } = await supabase
+        .from('lancamentos')
+        .select(`
+          *,
+          categoria:categorias!inner(id),
+          indicador:indicadores!inner(id)
+        `)
+        .eq('empresa_id', selectedEmpresa)
+        .in('mes', meses.map(m => m.mes))
+        .in('ano', [...new Set(meses.map(m => m.ano))]);
+
+      // Buscar todos os componentes de uma vez
+      const { data: componentes } = await supabase
+        .from('dre_conta_componentes')
+        .select(`
+          *,
+          categoria:categorias(id),
+          indicador:indicadores(id)
+        `)
+        .in('conta_id', contas.map(c => c.id));
+
+      // Mapear componentes por conta para acesso rápido
+      const componentesPorConta = new Map();
+      componentes?.forEach(comp => {
+        if (!componentesPorConta.has(comp.conta_id)) {
+          componentesPorConta.set(comp.conta_id, []);
+        }
+        componentesPorConta.get(comp.conta_id).push(comp);
+      });
+
+      // Mapear contas para lookup rápido
       const contasMap = new Map<string, ContaCalculada>();
       const contasRaiz: ContaCalculada[] = [];
 
       // Inicializar todas as contas com valores zerados
-      for (const conta of contas) {
+      contas.forEach(conta => {
         const valores: { [key: string]: number } = {};
         meses.forEach(({ mes, ano }) => {
           valores[`${ano}-${mes}`] = 0;
         });
 
-        contasMap.set(conta.id, { 
-          ...conta, 
+        contasMap.set(conta.id, {
+          ...conta,
           valores,
           total12Meses: 0
         });
-      }
+      });
 
       // Calcular valores para cada conta
       for (const conta of contas) {
         const contaCalculada = contasMap.get(conta.id)!;
+        const componentesConta = componentesPorConta.get(conta.id) || [];
         
         // Calcular valores para cada mês
         for (const { mes, ano } of meses) {
-          const valor = await calcularValorConta(conta.id, {
-            mes,
-            ano,
-            empresaId: selectedEmpresa
-          });
-          
-          contaCalculada.valores[`${ano}-${mes}`] = valor;
+          let valorMes = 0;
+
+          // Se tem componentes, calcular baseado neles
+          if (componentesConta.length > 0) {
+            for (const componente of componentesConta) {
+              let valorComponente = 0;
+              const lancamentosFiltrados = lancamentos?.filter(l => {
+                if (componente.categoria_id) {
+                  return l.categoria_id === componente.categoria_id && l.mes === mes && l.ano === ano;
+                }
+                if (componente.indicador_id) {
+                  return l.indicador_id === componente.indicador_id && l.mes === mes && l.ano === ano;
+                }
+                return false;
+              });
+
+              valorComponente = lancamentosFiltrados?.reduce((sum, l) => 
+                sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0) || 0;
+
+              valorMes += componente.simbolo === '+' ? valorComponente : -valorComponente;
+            }
+          }
+
+          contaCalculada.valores[`${ano}-${mes}`] = valorMes;
         }
 
         // Calcular total dos últimos 12 meses
