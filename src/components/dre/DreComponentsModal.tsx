@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, Search } from 'lucide-react';
-import { DreConfiguracao, Categoria, Indicador } from '../../types/database';
+import { Search, X } from 'lucide-react';
+import { DreConfiguracao } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
@@ -11,26 +11,17 @@ interface DreComponentsModalProps {
   onSave: () => void;
 }
 
-interface Componente {
-  id?: string;
-  tipo: 'categoria' | 'indicador';
-  referencia_id: string;
-  simbolo: '+' | '-' | '=';
-  nome: string;
-  codigo?: string;
-}
-
 const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
   conta,
   onClose,
   onSave,
 }) => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [componentes, setComponentes] = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [indicadores, setIndicadores] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTipo, setSelectedTipo] = useState<'categoria' | 'indicador'>('categoria');
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [indicadores, setIndicadores] = useState<Indicador[]>([]);
-  const [componentes, setComponentes] = useState<Componente[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -38,78 +29,60 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
 
   const fetchData = async () => {
     try {
-      // Buscar dados
-      const [categoriasRes, indicadoresRes, componentesRes] = await Promise.all([
-        supabase.from('categorias')
-          .select('*')
-          .eq('ativo', true)
-          .order('codigo'),
-        supabase.from('indicadores')
-          .select('*')
-          .eq('ativo', true)
-          .order('codigo'),
-        supabase.from('dre_conta_componentes')
+      const [{ data: componentesData }, { data: categoriasData }, { data: indicadoresData }] = await Promise.all([
+        supabase
+          .from('dre_conta_componentes')
           .select(`
-            id,
-            categoria:categorias (id, nome, codigo),
-            indicador:indicadores (id, nome, codigo),
-            simbolo
+            *,
+            categoria:categorias (
+              id,
+              nome,
+              codigo
+            ),
+            indicador:indicadores (
+              id,
+              nome,
+              codigo
+            )
           `)
-          .eq('conta_id', conta.id)
+          .eq('conta_id', conta.id),
+        supabase
+          .from('categorias')
+          .select('*')
+          .eq('ativo', true)
+          .order('codigo'),
+        supabase
+          .from('indicadores')
+          .select('*')
+          .eq('ativo', true)
+          .order('codigo')
       ]);
 
-      if (categoriasRes.data) setCategorias(categoriasRes.data);
-      if (indicadoresRes.data) setIndicadores(indicadoresRes.data);
-
-      // Processar componentes existentes
-      if (componentesRes.data) {
-        const comps = componentesRes.data.map(comp => {
-          if (comp.categoria) {
-            return {
-              id: comp.id,
-              tipo: 'categoria' as const,
-              referencia_id: comp.categoria.id,
-              simbolo: comp.simbolo as '+' | '-' | '=',
-              nome: comp.categoria.nome,
-              codigo: comp.categoria.codigo
-            };
-          }
-          return {
-            id: comp.id,
-            tipo: 'indicador' as const,
-            referencia_id: comp.indicador.id,
-            simbolo: comp.simbolo as '+' | '-' | '=',
-            nome: comp.indicador.nome,
-            codigo: comp.indicador.codigo
-          };
-        });
-        setComponentes(comps);
-      }
+      if (componentesData) setComponentes(componentesData);
+      if (categoriasData) setCategorias(categoriasData);
+      if (indicadoresData) setIndicadores(indicadoresData);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
-    } finally {
-      setLoading(false);
+      setError('Erro ao carregar dados necessários');
     }
   };
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Remover componentes existentes
       await supabase
         .from('dre_conta_componentes')
         .delete()
         .eq('conta_id', conta.id);
 
-      // Criar novos componentes
       if (componentes.length > 0) {
         const { error } = await supabase
           .from('dre_conta_componentes')
           .insert(
             componentes.map(comp => ({
               conta_id: conta.id,
-              categoria_id: comp.tipo === 'categoria' ? comp.referencia_id : null,
-              indicador_id: comp.tipo === 'indicador' ? comp.referencia_id : null,
+              categoria_id: comp.categoria?.id || null,
+              indicador_id: comp.indicador?.id || null,
               simbolo: comp.simbolo
             }))
           );
@@ -121,19 +94,27 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Erro ao salvar componentes:', err);
-      alert('Não foi possível salvar os componentes');
+      setError('Não foi possível salvar os componentes');
     } finally {
       setLoading(false);
     }
   };
 
+  const filteredCategorias = categorias.filter(cat => 
+    cat.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cat.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredIndicadores = indicadores.filter(ind => 
+    ind.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ind.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const addComponente = (tipo: 'categoria' | 'indicador', item: any) => {
     setComponentes(prev => [...prev, {
       tipo,
-      referencia_id: item.id,
       simbolo: '+',
-      nome: item.nome,
-      codigo: item.codigo
+      [tipo]: item
     }]);
   };
 
@@ -147,27 +128,6 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
     ));
   };
 
-  const filteredItems = () => {
-    const term = searchTerm.toLowerCase();
-    
-    switch (selectedTipo) {
-      case 'categoria':
-        return categorias.filter(cat => 
-          !componentes.some(comp => comp.tipo === 'categoria' && comp.referencia_id === cat.id) &&
-          (cat.codigo?.toLowerCase().includes(term) || cat.nome.toLowerCase().includes(term))
-        );
-      
-      case 'indicador':
-        return indicadores.filter(ind => 
-          !componentes.some(comp => comp.tipo === 'indicador' && comp.referencia_id === ind.id) &&
-          (ind.codigo?.toLowerCase().includes(term) || ind.nome.toLowerCase().includes(term))
-        );
-      
-      default:
-        return [];
-    }
-  };
-
   return (
     <Modal
       title="Gerenciar Componentes"
@@ -175,74 +135,70 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
       maxWidth="4xl"
     >
       <div className="space-y-6">
-        {/* Seleção de Tipo e Busca */}
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <Button
-              variant={selectedTipo === 'categoria' ? 'primary' : 'secondary'}
-              onClick={() => setSelectedTipo('categoria')}
-            >
-              Categorias
-            </Button>
-            <Button
-              variant={selectedTipo === 'indicador' ? 'primary' : 'secondary'}
-              onClick={() => setSelectedTipo('indicador')}
-            >
-              Indicadores
-            </Button>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-300">
+            {error}
           </div>
+        )}
 
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-500" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={`Buscar por código ou nome...`}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={18} className="text-gray-500" />
           </div>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nome ou código..."
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
-        {/* Lista de Itens Disponíveis */}
-        <div className="bg-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
-          <div className="space-y-2">
-            {filteredItems().map(item => (
-              <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-600 rounded-lg">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Categorias */}
+          <div className="bg-gray-700 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-400 mb-3">Categorias Disponíveis</h4>
+            <div className="h-48 overflow-y-auto pr-2">
+              {filteredCategorias.map(categoria => (
                 <button
-                  type="button"
-                  onClick={() => addComponente(selectedTipo, item)}
-                  className="p-1 text-gray-400 hover:text-white hover:bg-gray-500 rounded"
+                  key={categoria.id}
+                  onClick={() => addComponente('categoria', categoria)}
+                  className="w-full text-left p-2 hover:bg-gray-600 rounded-lg transition-colors"
+                  disabled={componentes.some(c => c.categoria?.id === categoria.id)}
                 >
-                  <ArrowRight size={16} />
+                  <span className="text-white">{categoria.nome}</span>
+                  <span className="text-gray-400 text-sm ml-2">({categoria.codigo})</span>
                 </button>
-                <div className="flex-1">
-                  <span className="text-white">{item.nome}</span>
-                  {'codigo' in item && item.codigo && (
-                    <span className="ml-2 text-gray-400 text-sm">({item.codigo})</span>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Indicadores */}
+          <div className="bg-gray-700 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-400 mb-3">Indicadores Disponíveis</h4>
+            <div className="h-48 overflow-y-auto pr-2">
+              {filteredIndicadores.map(indicador => (
+                <button
+                  key={indicador.id}
+                  onClick={() => addComponente('indicador', indicador)}
+                  className="w-full text-left p-2 hover:bg-gray-600 rounded-lg transition-colors"
+                  disabled={componentes.some(c => c.indicador?.id === indicador.id)}
+                >
+                  <span className="text-white">{indicador.nome}</span>
+                  <span className="text-gray-400 text-sm ml-2">({indicador.codigo})</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Componentes Selecionados */}
         <div>
-          <h3 className="text-lg font-medium text-white mb-3">Componentes Selecionados</h3>
+          <h4 className="text-sm font-medium text-gray-400 mb-3">Componentes Selecionados</h4>
           <div className="bg-gray-700 rounded-lg p-4">
-            <div className="space-y-2">
+            <div className="max-h-48 overflow-y-auto pr-2">
               {componentes.map((comp, index) => (
                 <div key={index} className="flex items-center gap-3 p-2 hover:bg-gray-600 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => removeComponente(index)}
-                    className="p-1 text-gray-400 hover:text-white hover:bg-gray-500 rounded"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
                   <select
                     value={comp.simbolo}
                     onChange={(e) => updateSimbolo(index, e.target.value as '+' | '-' | '=')}
@@ -253,11 +209,24 @@ const DreComponentsModal: React.FC<DreComponentsModalProps> = ({
                     <option value="=">=</option>
                   </select>
                   <div className="flex-1">
-                    <span className="text-white">{comp.nome}</span>
-                    {comp.codigo && (
-                      <span className="ml-2 text-gray-400 text-sm">({comp.codigo})</span>
-                    )}
+                    {comp.categoria ? (
+                      <>
+                        <span className="text-white">{comp.categoria.nome}</span>
+                        <span className="text-gray-400 text-sm ml-2">({comp.categoria.codigo})</span>
+                      </>
+                    ) : comp.indicador ? (
+                      <>
+                        <span className="text-white">{comp.indicador.nome}</span>
+                        <span className="text-gray-400 text-sm ml-2">({comp.indicador.codigo})</span>
+                      </>
+                    ) : null}
                   </div>
+                  <button
+                    onClick={() => removeComponente(index)}
+                    className="text-gray-400 hover:text-red-400 p-1 rounded hover:bg-gray-500"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
               ))}
             </div>

@@ -14,6 +14,13 @@ interface ContaCalculada extends DreConfiguracao {
   contas_filhas?: ContaCalculada[];
 }
 
+interface IndicadorComposicao {
+  id: string;
+  indicador_id: string;
+  componente_categoria_id: string | null;
+  componente_indicador_id: string | null;
+}
+
 const DrePage: React.FC = () => {
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -31,7 +38,6 @@ const DrePage: React.FC = () => {
       .order('razao_social'),
   });
 
-  // Buscar contas do DRE associadas à empresa selecionada
   const { data: contas } = useSupabaseQuery<DreConfiguracao>({
     query: () => {
       if (!selectedEmpresa) return Promise.resolve({ data: [] });
@@ -57,15 +63,12 @@ const DrePage: React.FC = () => {
     dependencies: [selectedEmpresa],
   });
 
-  // Gerar array de meses para visualização
   const getMesesVisualizacao = () => {
     const meses = [];
     let currentDate = new Date(selectedYear, selectedMonth - 1);
     
-    // Voltar 12 meses
     currentDate.setMonth(currentDate.getMonth() - 12);
     
-    // Gerar array com 13 meses (mês atual + 12 meses anteriores)
     for (let i = 0; i < 13; i++) {
       meses.push({
         mes: currentDate.getMonth() + 1,
@@ -77,8 +80,70 @@ const DrePage: React.FC = () => {
     return meses;
   };
 
+  const calcularValorIndicador = async (
+    indicadorId: string,
+    mes: number,
+    ano: number,
+    lancamentos: any[],
+    indicadoresProcessados = new Set<string>()
+  ): Promise<number> => {
+    // Evitar loops infinitos
+    if (indicadoresProcessados.has(indicadorId)) {
+      return 0;
+    }
+    indicadoresProcessados.add(indicadorId);
+
+    // Buscar composição do indicador
+    const { data: composicoes } = await supabase
+      .from('indicador_composicoes')
+      .select(`
+        *,
+        categoria:categorias (
+          id,
+          tipo
+        ),
+        indicador:indicadores (
+          id
+        )
+      `)
+      .eq('indicador_id', indicadorId);
+
+    if (!composicoes || composicoes.length === 0) {
+      // Se não tem composição, buscar diretamente dos lançamentos
+      return lancamentos
+        .filter(l => l.indicador_id === indicadorId && l.mes === mes && l.ano === ano)
+        .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
+    }
+
+    // Calcular valor baseado nas composições
+    let valorTotal = 0;
+    for (const comp of composicoes) {
+      if (comp.componente_categoria_id) {
+        // Calcular valor da categoria
+        valorTotal += lancamentos
+          .filter(l => 
+            l.categoria_id === comp.componente_categoria_id && 
+            l.mes === mes && 
+            l.ano === ano
+          )
+          .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
+      } else if (comp.componente_indicador_id) {
+        // Calcular valor do indicador recursivamente
+        valorTotal += await calcularValorIndicador(
+          comp.componente_indicador_id,
+          mes,
+          ano,
+          lancamentos,
+          new Set(indicadoresProcessados)
+        );
+      }
+    }
+
+    return valorTotal;
+  };
+
   useEffect(() => {
-    if (selectedEmpresa && selectedYear && selectedMonth && contas?.length) {
+    if (selectedEmpresa && selectedYear && selectedMonth) {
       calcularValores();
     }
   }, [selectedEmpresa, selectedYear, selectedMonth, contas]);
@@ -91,108 +156,104 @@ const DrePage: React.FC = () => {
 
     try {
       const meses = getMesesVisualizacao();
-      
-      // Buscar todos os lançamentos de uma vez
-      const { data: lancamentos } = await supabase
-        .from('lancamentos')
-        .select(`
-          valor,
-          tipo,
-          mes,
-          ano,
-          categoria_id,
-          indicador_id
-        `)
-        .eq('empresa_id', selectedEmpresa)
-        .in('mes', meses.map(m => m.mes))
-        .in('ano', [...new Set(meses.map(m => m.ano))]);
+      const periodoInicial = meses[0];
+      const periodoFinal = meses[meses.length - 1];
 
-      // Buscar todos os componentes de uma vez
-      const { data: componentes } = await supabase
-        .from('dre_conta_componentes')
-        .select(`
-          conta_id,
-          categoria_id,
-          indicador_id,
-          simbolo
-        `);
+      // Buscar todos os componentes e lançamentos de uma vez
+      const [{ data: componentes }, { data: lancamentos }] = await Promise.all([
+        supabase
+          .from('dre_conta_componentes')
+          .select(`
+            *,
+            categoria:categorias (
+              id,
+              nome,
+              tipo
+            ),
+            indicador:indicadores (
+              id,
+              nome
+            )
+          `)
+          .in('conta_id', contas.map(c => c.id)),
+        supabase
+          .from('lancamentos')
+          .select('*')
+          .eq('empresa_id', selectedEmpresa)
+          .gte('ano', periodoInicial.ano)
+          .lte('ano', periodoFinal.ano)
+      ]);
 
-      // Mapear componentes por conta para acesso rápido
-      const componentesPorConta = new Map();
-      componentes?.forEach(comp => {
-        if (!componentesPorConta.has(comp.conta_id)) {
-          componentesPorConta.set(comp.conta_id, []);
-        }
-        componentesPorConta.get(comp.conta_id).push(comp);
-      });
+      if (!componentes || !lancamentos) throw new Error('Erro ao buscar dados');
 
-      // Mapear contas para lookup rápido
+      // Organizar contas em hierarquia e calcular valores
       const contasMap = new Map<string, ContaCalculada>();
       const contasRaiz: ContaCalculada[] = [];
 
-      // Inicializar todas as contas com valores zerados
+      // Inicializar todas as contas com valores zerados para cada mês
       contas.forEach(conta => {
         const valores: { [key: string]: number } = {};
         meses.forEach(({ mes, ano }) => {
           valores[`${ano}-${mes}`] = 0;
         });
 
-        contasMap.set(conta.id, {
-          ...conta,
+        contasMap.set(conta.id, { 
+          ...conta, 
           valores,
           total12Meses: 0
         });
       });
 
-      // Calcular valores para cada conta
-      for (const conta of contas) {
-        const contaCalculada = contasMap.get(conta.id)!;
-        const componentesConta = componentesPorConta.get(conta.id) || [];
-        
-        // Calcular valores para cada mês
+      // Calcular valores para cada mês
+      for (const componente of componentes) {
+        const conta = contasMap.get(componente.conta_id);
+        if (!conta) continue;
+
         for (const { mes, ano } of meses) {
-          let valorMes = 0;
+          let valor = 0;
 
-          // Se tem componentes, calcular baseado neles
-          if (componentesConta.length > 0) {
-            for (const componente of componentesConta) {
-              let valorComponente = 0;
-              const lancamentosFiltrados = lancamentos?.filter(l => {
-                if (componente.categoria_id) {
-                  return l.categoria_id === componente.categoria_id && l.mes === mes && l.ano === ano;
-                }
-                if (componente.indicador_id) {
-                  return l.indicador_id === componente.indicador_id && l.mes === mes && l.ano === ano;
-                }
-                return false;
-              });
-
-              valorComponente = lancamentosFiltrados?.reduce((sum, l) => 
-                sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0) || 0;
-
-              valorMes += componente.simbolo === '+' ? valorComponente : -valorComponente;
-            }
+          // Calcular valor baseado em categoria
+          if (componente.categoria_id) {
+            valor = lancamentos
+              .filter(l => l.categoria_id === componente.categoria_id && l.mes === mes && l.ano === ano)
+              .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
+          }
+          // Calcular valor baseado em indicador
+          else if (componente.indicador_id) {
+            valor = await calcularValorIndicador(componente.indicador_id, mes, ano, lancamentos);
           }
 
-          contaCalculada.valores[`${ano}-${mes}`] = valorMes;
+          conta.valores[`${ano}-${mes}`] += componente.simbolo === '+' ? valor : -valor;
         }
+      }
 
-        // Calcular total dos últimos 12 meses
-        contaCalculada.total12Meses = meses
-          .slice(1) // Excluir o primeiro mês (13 meses atrás)
-          .reduce((total, { mes, ano }) => total + contaCalculada.valores[`${ano}-${mes}`], 0);
+      // Calcular total dos últimos 12 meses
+      contasMap.forEach(conta => {
+        conta.total12Meses = meses
+          .slice(1)
+          .reduce((total, { mes, ano }) => total + conta.valores[`${ano}-${mes}`], 0);
+      });
 
-        // Organizar hierarquia
+      // Organizar hierarquia e propagar valores
+      contas.forEach(conta => {
+        const contaCalculada = contasMap.get(conta.id)!;
+        
         if (conta.conta_pai_id) {
           const contaPai = contasMap.get(conta.conta_pai_id);
           if (contaPai) {
             if (!contaPai.contas_filhas) contaPai.contas_filhas = [];
             contaPai.contas_filhas.push(contaCalculada);
+            
+            // Propagar valores para a conta pai
+            meses.forEach(({ mes, ano }) => {
+              contaPai.valores[`${ano}-${mes}`] += contaCalculada.valores[`${ano}-${mes}`];
+            });
+            contaPai.total12Meses += contaCalculada.total12Meses;
           }
         } else {
           contasRaiz.push(contaCalculada);
         }
-      }
+      });
 
       // Ordenar contas filhas pela ordem
       const ordenarContasFilhas = (contas: ContaCalculada[]) => {

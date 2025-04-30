@@ -69,7 +69,7 @@ const DreConfigPage: React.FC = () => {
             id,
             nome
           ),
-          empresas:dre_contas_empresa(
+          empresas:dre_contas_empresa!inner(
             empresa_id,
             ativo
           )
@@ -84,7 +84,6 @@ const DreConfigPage: React.FC = () => {
     dependencies: [searchTerm],
   });
 
-  // Filtrar contas baseado na empresa selecionada
   useEffect(() => {
     if (!contas) return;
 
@@ -98,51 +97,6 @@ const DreConfigPage: React.FC = () => {
       setFilteredContas(filteredContas);
     }
   }, [selectedEmpresa, contas]);
-
-  const organizarContasHierarquicamente = (contas: DreConfiguracao[]): ContaHierarquica[] => {
-    const contasMap = new Map<string, ContaHierarquica>();
-    const contasRaiz: ContaHierarquica[] = [];
-
-    // Primeiro, criar todas as contas com nível 0
-    contas.forEach(conta => {
-      contasMap.set(conta.id, { ...conta, contas_filhas: [], nivel: 0 });
-    });
-
-    // Depois, organizar a hierarquia
-    contas.forEach(conta => {
-      const contaAtual = contasMap.get(conta.id)!;
-      
-      if (conta.conta_pai_id) {
-        const contaPai = contasMap.get(conta.conta_pai_id);
-        if (contaPai) {
-          if (!contaPai.contas_filhas) {
-            contaPai.contas_filhas = [];
-          }
-          contaPai.contas_filhas.push(contaAtual);
-          contaAtual.nivel = (contaPai.nivel || 0) + 1;
-        } else {
-          contasRaiz.push(contaAtual);
-        }
-      } else {
-        contasRaiz.push(contaAtual);
-      }
-    });
-
-    // Ordenar contas raiz e contas filhas recursivamente
-    const ordenarContas = (contas: ContaHierarquica[]) => {
-      contas.sort((a, b) => a.ordem - b.ordem);
-      contas.forEach(conta => {
-        if (conta.contas_filhas && conta.contas_filhas.length > 0) {
-          ordenarContas(conta.contas_filhas);
-        }
-      });
-    };
-
-    ordenarContas(contasRaiz);
-    return contasRaiz;
-  };
-
-  const contasHierarquicas = organizarContasHierarquicamente(filteredContas);
 
   useEffect(() => {
     if (selectedConta) {
@@ -185,6 +139,48 @@ const DreConfigPage: React.FC = () => {
       setLoadingComponentes(false);
     }
   };
+
+  const organizarContasHierarquicamente = (contas: DreConfiguracao[]): ContaHierarquica[] => {
+    const contasMap = new Map<string, ContaHierarquica>();
+    const contasRaiz: ContaHierarquica[] = [];
+
+    contas.forEach(conta => {
+      contasMap.set(conta.id, { ...conta, contas_filhas: [], nivel: 0 });
+    });
+
+    contas.forEach(conta => {
+      const contaAtual = contasMap.get(conta.id)!;
+      
+      if (conta.conta_pai_id) {
+        const contaPai = contasMap.get(conta.conta_pai_id);
+        if (contaPai) {
+          if (!contaPai.contas_filhas) {
+            contaPai.contas_filhas = [];
+          }
+          contaPai.contas_filhas.push(contaAtual);
+          contaAtual.nivel = (contaPai.nivel || 0) + 1;
+        } else {
+          contasRaiz.push(contaAtual);
+        }
+      } else {
+        contasRaiz.push(contaAtual);
+      }
+    });
+
+    const ordenarContas = (contas: ContaHierarquica[]) => {
+      contas.sort((a, b) => a.ordem - b.ordem);
+      contas.forEach(conta => {
+        if (conta.contas_filhas && conta.contas_filhas.length > 0) {
+          ordenarContas(conta.contas_filhas);
+        }
+      });
+    };
+
+    ordenarContas(contasRaiz);
+    return contasRaiz;
+  };
+
+  const contasHierarquicas = organizarContasHierarquicamente(filteredContas);
 
   const toggleExpanded = (contaId: string) => {
     setExpandedContas(prev => {
@@ -267,7 +263,7 @@ const DreConfigPage: React.FC = () => {
 
   return (
     <div className="flex gap-6 h-[calc(100vh-12rem)]">
-      <div className="flex-[7] space-y-6">
+      <div className="flex-[7] space-y-6 overflow-hidden flex flex-col">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-semibold text-white">Configuração do DRE</h2>
@@ -292,36 +288,38 @@ const DreConfigPage: React.FC = () => {
           onEmpresaChange={setSelectedEmpresa}
         />
 
-        <div className="bg-gray-800 rounded-xl p-6 overflow-auto flex-1">
-          {filteredContas.length === 0 ? (
-            <EmptyState message="Nenhuma conta configurada." />
-          ) : (
-            <DreAccountList
-              contas={contasHierarquicas}
-              selectedConta={selectedConta}
-              expandedContas={expandedContas}
-              onSelectConta={setSelectedConta}
-              onToggleExpanded={toggleExpanded}
-              onManageCompanies={(conta) => {
-                setSelectedConta(conta);
-                setIsCompaniesModalOpen(true);
-              }}
-              onManageComponents={(conta) => {
-                setSelectedConta(conta);
-                setIsComponentsModalOpen(true);
-              }}
-              onEdit={(conta) => {
-                setSelectedConta(conta);
-                setIsModalOpen(true);
-              }}
-              onToggleActive={handleToggleActive}
-              onDelete={handleDelete}
-            />
-          )}
+        <div className="flex-1 bg-gray-800 rounded-xl p-6 overflow-hidden flex flex-col">
+          <div className="overflow-y-auto flex-1">
+            {filteredContas.length === 0 ? (
+              <EmptyState message="Nenhuma conta configurada." />
+            ) : (
+              <DreAccountList
+                contas={contasHierarquicas}
+                selectedConta={selectedConta}
+                expandedContas={expandedContas}
+                onSelectConta={setSelectedConta}
+                onToggleExpanded={toggleExpanded}
+                onManageCompanies={(conta) => {
+                  setSelectedConta(conta);
+                  setIsCompaniesModalOpen(true);
+                }}
+                onManageComponents={(conta) => {
+                  setSelectedConta(conta);
+                  setIsComponentsModalOpen(true);
+                }}
+                onEdit={(conta) => {
+                  setSelectedConta(conta);
+                  setIsModalOpen(true);
+                }}
+                onToggleActive={handleToggleActive}
+                onDelete={handleDelete}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="flex-[3] bg-gray-800 rounded-xl p-6">
+      <div className="flex-[3] bg-gray-800 rounded-xl p-6 flex flex-col">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-medium text-white">
             {selectedConta ? 'Componentes' : 'Selecione uma conta'}
@@ -337,12 +335,14 @@ const DreConfigPage: React.FC = () => {
           )}
         </div>
 
-        <DreAccountDetails
-          selectedConta={selectedConta}
-          componentes={componentes}
-          loadingComponentes={loadingComponentes}
-          onManageComponents={() => setIsComponentsModalOpen(true)}
-        />
+        <div className="flex-1 overflow-auto">
+          <DreAccountDetails
+            selectedConta={selectedConta}
+            componentes={componentes}
+            loadingComponentes={loadingComponentes}
+            onManageComponents={() => setIsComponentsModalOpen(true)}
+          />
+        </div>
       </div>
 
       {isModalOpen && (

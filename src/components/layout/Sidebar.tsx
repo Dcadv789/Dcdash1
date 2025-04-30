@@ -39,7 +39,7 @@ const Sidebar: React.FC = () => {
   return (
     <div 
       className={`
-        bg-black rounded-2xl flex flex-col flex-shrink-0
+        bg-black rounded-2xl flex flex-col flex-shrink-0 sticky top-4 h-[calc(100vh-2rem)]
         ${collapsed ? 'w-20' : 'w-64'}
       `}
     >
@@ -55,7 +55,7 @@ const Sidebar: React.FC = () => {
         </button>
       </div>
       
-      <nav className="flex-1 p-2 space-y-2">
+      <nav className="flex-1 p-2 space-y-2 overflow-hidden">
         <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" collapsed={collapsed} />
         <NavItem to="/vendas" icon={<DollarSign size={20} />} label="Vendas" collapsed={collapsed} />
         <NavItem to="/analysis" icon={<LineChart size={20} />} label="Análise" collapsed={collapsed} />

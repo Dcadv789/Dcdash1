@@ -40,7 +40,7 @@ const DreAccountDetails: React.FC<DreAccountDetailsProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-full flex flex-col">
       <div className="bg-gray-700/50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-gray-300 mb-2">Detalhes da Conta</h4>
         <div className="space-y-2 text-sm">
@@ -61,42 +61,50 @@ const DreAccountDetails: React.FC<DreAccountDetailsProps> = ({
         </div>
       </div>
 
-      {loadingComponentes ? (
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-        </div>
-      ) : componentes.length > 0 ? (
-        <div className="space-y-2">
-          {componentes.map((componente) => (
-            <div key={componente.id} className="bg-gray-700 rounded-lg p-3">
-              <div className="flex items-center gap-3">
-                <span className="text-xl font-mono text-gray-400">{componente.simbolo}</span>
-                <div>
-                  {componente.categoria ? (
-                    <div>
-                      <span className="text-white">{componente.categoria.nome}</span>
-                      <span className="text-gray-400 text-sm ml-2">
-                        ({componente.categoria.codigo})
-                      </span>
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <h4 className="text-sm font-medium text-gray-300 mb-2">Componentes</h4>
+        
+        {loadingComponentes ? (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+            {componentes.length > 0 ? (
+              <div className="space-y-2">
+                {componentes.map((componente) => (
+                  <div key={componente.id} className="bg-gray-700 rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-mono text-gray-400">{componente.simbolo}</span>
+                      <div>
+                        {componente.categoria ? (
+                          <div>
+                            <span className="text-white">{componente.categoria.nome}</span>
+                            <span className="text-gray-400 text-sm ml-2">
+                              ({componente.categoria.codigo})
+                            </span>
+                          </div>
+                        ) : componente.indicador ? (
+                          <div>
+                            <span className="text-white">{componente.indicador.nome}</span>
+                            <span className="text-gray-400 text-sm ml-2">
+                              ({componente.indicador.codigo})
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  ) : componente.indicador ? (
-                    <div>
-                      <span className="text-white">{componente.indicador.nome}</span>
-                      <span className="text-gray-400 text-sm ml-2">
-                        ({componente.indicador.codigo})
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-gray-400 text-center py-4">
-          Nenhum componente configurado
-        </div>
-      )}
+            ) : (
+              <div className="text-gray-400 text-center py-4">
+                Nenhum componente configurado
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

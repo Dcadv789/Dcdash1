@@ -6,7 +6,7 @@ import Navbar from './Navbar';
 const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 flex justify-center">
-      <div className="w-[1920px] h-[1080px] p-4 flex gap-4">
+      <div className="w-[1920px] min-h-screen p-4 flex gap-4">
         <Sidebar />
         <div className="flex-1 flex flex-col gap-4">
           <Navbar />
