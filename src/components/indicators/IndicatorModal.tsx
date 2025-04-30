@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Search } from 'lucide-react';
 import { Indicador } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../shared/Button';
@@ -13,12 +13,43 @@ interface IndicatorModalProps {
 const IndicatorModal: React.FC<IndicatorModalProps> = ({ indicator, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categorias, setCategorias] = useState<any[]>([]);
+  const [indicadores, setIndicadores] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     nome: indicator?.nome || '',
     descricao: indicator?.descricao || '',
     tipo: indicator?.tipo || 'único',
     tipo_dado: indicator?.tipo_dado || 'moeda',
   });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [{ data: categoriasData }, { data: indicadoresData }] = await Promise.all([
+        supabase
+          .from('categorias')
+          .select('*')
+          .eq('ativo', true)
+          .order('codigo'),
+        supabase
+          .from('indicadores')
+          .select('*')
+          .eq('ativo', true)
+          .eq('tipo', 'único') // Apenas indicadores únicos podem ser usados em compostos
+          .order('codigo')
+      ]);
+
+      if (categoriasData) setCategorias(categoriasData);
+      if (indicadoresData) setIndicadores(indicadoresData);
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err);
+      setError('Erro ao carregar dados necessários');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +91,16 @@ const IndicatorModal: React.FC<IndicatorModalProps> = ({ indicator, onClose, onS
       setLoading(false);
     }
   };
+
+  const filteredCategorias = categorias.filter(cat => 
+    cat.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cat.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredIndicadores = indicadores.filter(ind => 
+    ind.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ind.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -139,6 +180,62 @@ const IndicatorModal: React.FC<IndicatorModalProps> = ({ indicator, onClose, onS
                 <option value="percentual">Percentual</option>
               </select>
             </div>
+
+            {formData.tipo === 'único' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Categorias
+                </label>
+                <div className="relative mb-4">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search size={18} className="text-gray-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por nome ou código..."
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto bg-gray-700 rounded-lg p-2">
+                  {filteredCategorias.map(categoria => (
+                    <div key={categoria.id} className="p-2 hover:bg-gray-600 rounded-lg">
+                      <span className="text-white">{categoria.nome}</span>
+                      <span className="text-gray-400 text-sm ml-2">({categoria.codigo})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.tipo === 'composto' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Indicadores
+                </label>
+                <div className="relative mb-4">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search size={18} className="text-gray-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por nome ou código..."
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto bg-gray-700 rounded-lg p-2">
+                  {filteredIndicadores.map(indicador => (
+                    <div key={indicador.id} className="p-2 hover:bg-gray-600 rounded-lg">
+                      <span className="text-white">{indicador.nome}</span>
+                      <span className="text-gray-400 text-sm ml-2">({indicador.codigo})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="flex justify-end gap-3 mt-6">

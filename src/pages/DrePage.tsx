@@ -14,13 +14,6 @@ interface ContaCalculada extends DreConfiguracao {
   contas_filhas?: ContaCalculada[];
 }
 
-interface IndicadorComposicao {
-  id: string;
-  indicador_id: string;
-  componente_categoria_id: string | null;
-  componente_indicador_id: string | null;
-}
-
 const DrePage: React.FC = () => {
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -38,6 +31,7 @@ const DrePage: React.FC = () => {
       .order('razao_social'),
   });
 
+  // Buscar contas do DRE associadas à empresa selecionada
   const { data: contas } = useSupabaseQuery<DreConfiguracao>({
     query: () => {
       if (!selectedEmpresa) return Promise.resolve({ data: [] });
@@ -63,12 +57,15 @@ const DrePage: React.FC = () => {
     dependencies: [selectedEmpresa],
   });
 
+  // Gerar array de meses para visualização
   const getMesesVisualizacao = () => {
     const meses = [];
     let currentDate = new Date(selectedYear, selectedMonth - 1);
     
+    // Voltar 12 meses
     currentDate.setMonth(currentDate.getMonth() - 12);
     
+    // Gerar array com 13 meses (mês atual + 12 meses anteriores)
     for (let i = 0; i < 13; i++) {
       meses.push({
         mes: currentDate.getMonth() + 1,
@@ -78,68 +75,6 @@ const DrePage: React.FC = () => {
     }
     
     return meses;
-  };
-
-  const calcularValorIndicador = async (
-    indicadorId: string,
-    mes: number,
-    ano: number,
-    lancamentos: any[],
-    indicadoresProcessados = new Set<string>()
-  ): Promise<number> => {
-    // Evitar loops infinitos
-    if (indicadoresProcessados.has(indicadorId)) {
-      return 0;
-    }
-    indicadoresProcessados.add(indicadorId);
-
-    // Buscar composição do indicador
-    const { data: composicoes } = await supabase
-      .from('indicador_composicoes')
-      .select(`
-        *,
-        categoria:categorias (
-          id,
-          tipo
-        ),
-        indicador:indicadores (
-          id
-        )
-      `)
-      .eq('indicador_id', indicadorId);
-
-    if (!composicoes || composicoes.length === 0) {
-      // Se não tem composição, buscar diretamente dos lançamentos
-      return lancamentos
-        .filter(l => l.indicador_id === indicadorId && l.mes === mes && l.ano === ano)
-        .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
-    }
-
-    // Calcular valor baseado nas composições
-    let valorTotal = 0;
-    for (const comp of composicoes) {
-      if (comp.componente_categoria_id) {
-        // Calcular valor da categoria
-        valorTotal += lancamentos
-          .filter(l => 
-            l.categoria_id === comp.componente_categoria_id && 
-            l.mes === mes && 
-            l.ano === ano
-          )
-          .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
-      } else if (comp.componente_indicador_id) {
-        // Calcular valor do indicador recursivamente
-        valorTotal += await calcularValorIndicador(
-          comp.componente_indicador_id,
-          mes,
-          ano,
-          lancamentos,
-          new Set(indicadoresProcessados)
-        );
-      }
-    }
-
-    return valorTotal;
   };
 
   useEffect(() => {
@@ -205,11 +140,11 @@ const DrePage: React.FC = () => {
       });
 
       // Calcular valores para cada mês
-      for (const componente of componentes) {
+      componentes.forEach(componente => {
         const conta = contasMap.get(componente.conta_id);
-        if (!conta) continue;
+        if (!conta) return;
 
-        for (const { mes, ano } of meses) {
+        meses.forEach(({ mes, ano }) => {
           let valor = 0;
 
           // Calcular valor baseado em categoria
@@ -220,17 +155,19 @@ const DrePage: React.FC = () => {
           }
           // Calcular valor baseado em indicador
           else if (componente.indicador_id) {
-            valor = await calcularValorIndicador(componente.indicador_id, mes, ano, lancamentos);
+            valor = lancamentos
+              .filter(l => l.indicador_id === componente.indicador_id && l.mes === mes && l.ano === ano)
+              .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
           }
 
           conta.valores[`${ano}-${mes}`] += componente.simbolo === '+' ? valor : -valor;
-        }
-      }
+        });
+      });
 
       // Calcular total dos últimos 12 meses
       contasMap.forEach(conta => {
         conta.total12Meses = meses
-          .slice(1)
+          .slice(1) // Excluir o primeiro mês (13 meses atrás)
           .reduce((total, { mes, ano }) => total + conta.valores[`${ano}-${mes}`], 0);
       });
 
