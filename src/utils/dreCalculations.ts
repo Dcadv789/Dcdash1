@@ -59,7 +59,7 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     return formulaCache.get(cacheKey)!;
   }
 
-  // 1. Verificar se a conta tem fórmula
+  // 1. Primeiro, verificar se a conta tem fórmula
   const { data: formula } = await supabase
     .from('dre_conta_formulas')
     .select('*')
@@ -83,7 +83,7 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     return resultado;
   }
 
-  // 2. Verificar se é conta pai
+  // 2. Se não tem fórmula, verificar se é conta pai
   const { data: conta } = await supabase
     .from('dre_configuracao')
     .select(`
@@ -105,7 +105,7 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     return total;
   }
 
-  // 3. Buscar componentes da conta
+  // 3. Se não tem fórmula nem contas filhas, buscar componentes
   const { data: componentes } = await supabase
     .from('dre_conta_componentes')
     .select(`
@@ -128,8 +128,6 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
         valor = calcularValorLancamentos(lancamentos, componente.categoria_id, 'categoria');
       } else if (componente.indicador_id) {
         valor = calcularValorLancamentos(lancamentos, componente.indicador_id, 'indicador');
-      } else if (componente.conta_componente_id) {
-        valor = await calcularValorConta(componente.conta_componente_id, context);
       }
 
       total += componente.simbolo === '+' ? valor : -valor;
