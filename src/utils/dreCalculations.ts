@@ -101,6 +101,8 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
         valor = calcularValorLancamentos(lancamentos, componente.categoria_id, 'categoria');
       } else if (componente.indicador_id) {
         valor = calcularValorLancamentos(lancamentos, componente.indicador_id, 'indicador');
+      } else if (componente.conta_componente_id) {
+        valor = await calcularValorConta(componente.conta_componente_id, context);
       }
 
       total += componente.simbolo === '+' ? valor : -valor;
