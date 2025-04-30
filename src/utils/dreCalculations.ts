@@ -99,7 +99,8 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
   if (conta.contas_filhas && conta.contas_filhas.length > 0) {
     let total = 0;
     for (const contaFilha of conta.contas_filhas) {
-      total += await calcularValorConta(contaFilha.id, context);
+      const valorFilha = await calcularValorConta(contaFilha.id, context);
+      total += valorFilha;
     }
     formulaCache.set(cacheKey, total);
     return total;
@@ -122,15 +123,15 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
   if (componentes && componentes.length > 0) {
     let total = 0;
     for (const componente of componentes) {
-      let valor = 0;
+      let valorComponente = 0;
 
       if (componente.categoria_id) {
-        valor = calcularValorLancamentos(lancamentos, componente.categoria_id, 'categoria');
+        valorComponente = calcularValorLancamentos(lancamentos, componente.categoria_id, 'categoria');
       } else if (componente.indicador_id) {
-        valor = calcularValorLancamentos(lancamentos, componente.indicador_id, 'indicador');
+        valorComponente = calcularValorLancamentos(lancamentos, componente.indicador_id, 'indicador');
       }
 
-      total += componente.simbolo === '+' ? valor : -valor;
+      total += componente.simbolo === '+' ? valorComponente : -valorComponente;
     }
     formulaCache.set(cacheKey, total);
     return total;
