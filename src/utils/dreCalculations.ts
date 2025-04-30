@@ -49,8 +49,41 @@ const calcularValorLancamentos = (lancamentos: any[], referenciaId: string, tipo
     .reduce((sum, l) => sum + (l.tipo === 'receita' ? l.valor : -l.valor), 0);
 };
 
+// Cache para evitar loops infinitos em fórmulas recursivas
+const formulaCache = new Map<string, number>();
+
 export async function calcularValorConta(contaId: string, context: CalculationContext): Promise<number> {
-  // 1. Verificar se é conta pai
+  // Verificar cache de fórmula para evitar loops infinitos
+  const cacheKey = `${contaId}-${context.mes}-${context.ano}`;
+  if (formulaCache.has(cacheKey)) {
+    return formulaCache.get(cacheKey)!;
+  }
+
+  // 1. Verificar se a conta tem fórmula
+  const { data: formula } = await supabase
+    .from('dre_conta_formulas')
+    .select('*')
+    .eq('conta_id', contaId)
+    .maybeSingle();
+
+  if (formula) {
+    // Calcular valor usando a fórmula
+    const valor1 = await getOperandoValue(formula.operando_1_id, formula.operando_1_tipo, context);
+    const valor2 = await getOperandoValue(formula.operando_2_id, formula.operando_2_tipo, context);
+
+    let resultado = 0;
+    switch (formula.operador) {
+      case '+': resultado = valor1 + valor2; break;
+      case '-': resultado = valor1 - valor2; break;
+      case '*': resultado = valor1 * valor2; break;
+      case '/': resultado = valor2 !== 0 ? valor1 / valor2 : 0; break;
+    }
+
+    formulaCache.set(cacheKey, resultado);
+    return resultado;
+  }
+
+  // 2. Verificar se é conta pai
   const { data: conta } = await supabase
     .from('dre_configuracao')
     .select(`
@@ -68,10 +101,11 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     for (const contaFilha of conta.contas_filhas) {
       total += await calcularValorConta(contaFilha.id, context);
     }
+    formulaCache.set(cacheKey, total);
     return total;
   }
 
-  // Buscar todos os componentes da conta
+  // 3. Buscar componentes da conta
   const { data: componentes } = await supabase
     .from('dre_conta_componentes')
     .select(`
@@ -81,17 +115,10 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
     `)
     .eq('conta_id', contaId);
 
-  // Buscar fórmula se existir
-  const { data: formula } = await supabase
-    .from('dre_conta_formulas')
-    .select('*')
-    .eq('conta_id', contaId)
-    .maybeSingle();
-
   // Buscar lançamentos uma única vez
   const lancamentos = await fetchLancamentos(context);
 
-  // 2. Se tem componentes, calcular baseado neles
+  // 4. Se tem componentes, calcular baseado neles
   if (componentes && componentes.length > 0) {
     let total = 0;
     for (const componente of componentes) {
@@ -107,23 +134,11 @@ export async function calcularValorConta(contaId: string, context: CalculationCo
 
       total += componente.simbolo === '+' ? valor : -valor;
     }
+    formulaCache.set(cacheKey, total);
     return total;
   }
 
-  // 3. Se tem fórmula, calcular baseado nela
-  if (formula) {
-    const valor1 = await getOperandoValue(formula.operando_1_id, formula.operando_1_tipo, context);
-    const valor2 = await getOperandoValue(formula.operando_2_id, formula.operando_2_tipo, context);
-
-    switch (formula.operador) {
-      case '+': return valor1 + valor2;
-      case '-': return valor1 - valor2;
-      case '*': return valor1 * valor2;
-      case '/': return valor2 !== 0 ? valor1 / valor2 : 0;
-      default: return 0;
-    }
-  }
-
+  formulaCache.set(cacheKey, 0);
   return 0;
 }
 
