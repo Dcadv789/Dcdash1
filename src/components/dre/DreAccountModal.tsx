@@ -54,16 +54,25 @@ const DreAccountModal: React.FC<DreAccountModalProps> = ({
       .from('dre_conta_formulas')
       .select('*')
       .eq('conta_id', conta.id)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setIsFormula(true);
       setFormula({
-        operando1Id: data.operando_1_id,
-        operando1Tipo: data.operando_1_tipo,
-        operador: data.operador,
-        operando2Id: data.operando_2_id,
-        operando2Tipo: data.operando_2_tipo
+        operando1Id: data.operando_1_id || '',
+        operando1Tipo: data.operando_1_tipo || 'conta',
+        operador: data.operador || '+',
+        operando2Id: data.operando_2_id || '',
+        operando2Tipo: data.operando_2_tipo || 'conta'
+      });
+    } else {
+      setIsFormula(false);
+      setFormula({
+        operando1Id: '',
+        operando1Tipo: 'conta',
+        operador: '+',
+        operando2Id: '',
+        operando2Tipo: 'conta'
       });
     }
   };
@@ -86,7 +95,8 @@ const DreAccountModal: React.FC<DreAccountModalProps> = ({
         .from('dre_configuracao')
         .upsert([{
           id: conta?.id,
-          ...contaData
+          ...contaData,
+          ativo: true // Garantir que a conta permaneça ativa
         }])
         .select()
         .single();
@@ -115,6 +125,12 @@ const DreAccountModal: React.FC<DreAccountModalProps> = ({
           }]);
 
         if (formulaError) throw formulaError;
+      } else if (savedConta) {
+        // Se não é mais uma fórmula, remover fórmulas existentes
+        await supabase
+          .from('dre_conta_formulas')
+          .delete()
+          .eq('conta_id', savedConta.id);
       }
 
       onSave(contaData);
