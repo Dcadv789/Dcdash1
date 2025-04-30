@@ -96,9 +96,12 @@ const DrePage: React.FC = () => {
       const { data: lancamentos } = await supabase
         .from('lancamentos')
         .select(`
-          *,
-          categoria:categorias!inner(id),
-          indicador:indicadores!inner(id)
+          valor,
+          tipo,
+          mes,
+          ano,
+          categoria_id,
+          indicador_id
         `)
         .eq('empresa_id', selectedEmpresa)
         .in('mes', meses.map(m => m.mes))
@@ -108,11 +111,11 @@ const DrePage: React.FC = () => {
       const { data: componentes } = await supabase
         .from('dre_conta_componentes')
         .select(`
-          *,
-          categoria:categorias(id),
-          indicador:indicadores(id)
-        `)
-        .in('conta_id', contas.map(c => c.id));
+          conta_id,
+          categoria_id,
+          indicador_id,
+          simbolo
+        `);
 
       // Mapear componentes por conta para acesso rápido
       const componentesPorConta = new Map();
